@@ -1,142 +1,199 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voter Search</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voter Search Portal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 p-4">
-    <div class="max-w-6xl mx-auto">
-        <h1 class="text-2xl font-bold text-center mb-6 text-indigo-900">Voter Search Portal</h1>
-        
-        <!-- Status Message -->
-        <div id="statusMsg" class="bg-blue-100 text-blue-800 p-3 rounded mb-4 text-center font-semibold">
-            Loading 77MB data... please wait...
-        </div>
+<body class="bg-gray-100 text-gray-900">
+  <div class="max-w-7xl mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-center text-indigo-900 mb-6">Voter Search Portal</h1>
 
-        <!-- Search Form -->
-        <div class="bg-white p-4 rounded shadow mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
-            <div>
-                <label class="block text-xs font-bold text-gray-600 mb-1">Voter Name</label>
-                <input type="text" id="name" class="w-full border p-2 rounded" placeholder="Enter name">
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-600 mb-1">Part Number</label>
-                <input type="text" id="part" class="w-full border p-2 rounded" placeholder="e.g. 16">
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-600 mb-1">House Number</label>
-                <input type="text" id="hno" class="w-full border p-2 rounded" placeholder="e.g. 1-23">
-            </div>
-            <div class="flex items-end">
-                <button onclick="search()" id="btn" disabled class="w-full bg-indigo-600 text-white p-2 rounded font-bold disabled:bg-gray-400">
-                    Search
-                </button>
-            </div>
-        </div>
-
-        <!-- Results Count -->
-        <div id="count" class="mb-2 font-semibold text-gray-700"></div>
-
-        <!-- Results Table -->
-        <div class="bg-white rounded shadow overflow-hidden">
-            <table class="w-full text-sm">
-                <thead class="bg-indigo-900 text-white">
-                    <tr>
-                        <th class="p-3 text-left">Part No</th>
-                        <th class="p-3 text-left">Name</th>
-                        <th class="p-3 text-left">Relation</th>
-                        <th class="p-3 text-left">House No</th>
-                    </tr>
-                </thead>
-                <tbody id="results" class="divide-y divide-gray-200"></tbody>
-            </table>
-            <div id="empty" class="p-8 text-center text-gray-500 hidden">No results found</div>
-        </div>
+    <div id="statusMsg" class="bg-blue-100 text-blue-800 p-3 rounded mb-5 text-center font-semibold">
+      Loading voter data...
     </div>
 
-    <script>
-        let data = [];
-        let isLoaded = false;
+    <div class="bg-white rounded-xl shadow p-5 mb-5">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div>
+          <label class="block text-sm font-semibold mb-1">Voter Name</label>
+          <input id="name" type="text" placeholder="e.g. Javaji Obulapati" class="w-full border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
 
-        // Load the JSON file
-        fetch('./voter_data.json')
-            .then(response => {
-                if (!response.ok) throw new Error("File not found");
-                return response.json();
-            })
-            .then(json => {
-                data = json;
-                isLoaded = true;
-                document.getElementById('statusMsg').className = "bg-green-100 text-green-800 p-3 rounded mb-4 text-center font-semibold";
-                document.getElementById('statusMsg').innerText = `✅ Data loaded successfully! (${data.length} records)`;
-                document.getElementById('btn').disabled = false;
-                console.log("Sample record:", data[0]); // Check console for actual field names
-            })
-            .catch(err => {
-                document.getElementById('statusMsg').className = "bg-red-100 text-red-800 p-3 rounded mb-4 text-center font-semibold";
-                document.getElementById('statusMsg').innerText = "❌ Error loading data: " + err.message;
-            });
+        <div>
+          <label class="block text-sm font-semibold mb-1">Relation Name</label>
+          <input id="relation" type="text" placeholder="e.g. Father/Spouse name" class="w-full border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
 
-        function search() {
-            if (!isLoaded) return;
+        <div>
+          <label class="block text-sm font-semibold mb-1">Part Number</label>
+          <input id="part" type="text" placeholder="e.g. 16" class="w-full border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
 
-            const nameVal = document.getElementById('name').value.toUpperCase().trim();
-            const partVal = document.getElementById('part').value.trim();
-            const hnoVal = document.getElementById('hno').value.trim();
+        <div>
+          <label class="block text-sm font-semibold mb-1">House Number</label>
+          <input id="hno" type="text" placeholder="e.g. 1-23" class="w-full border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+      </div>
 
-            // Filter logic - ALL fields are optional
-            const filtered = data.filter(item => {
-                // Get values safely (handle undefined)
-                const name = (item.NAME_ENG || "").toUpperCase();
-                const part = String(item.part_no || "");
-                const hno = String(item.New_Hno || "");
-                const rel = item.RELATION_NAME || "";
+      <div class="flex flex-col md:flex-row gap-3 mt-5">
+        <button id="searchBtn" onclick="searchData()" disabled class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-lg disabled:bg-gray-400">
+          Search
+        </button>
+        <button onclick="clearSearch()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-6 py-3 rounded-lg">
+          Clear
+        </button>
+      </div>
+    </div>
 
-                // Check matches
-                const matchName = !nameVal || name.includes(nameVal);
-                const matchPart = !partVal || part === partVal;
-                const matchHno = !hnoVal || hno.includes(hnoVal);
+    <div id="count" class="mb-3 font-semibold text-gray-700"></div>
 
-                return matchName && matchPart && matchHno;
-            });
+    <div class="bg-white rounded-xl shadow overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-indigo-900 text-white">
+            <tr>
+              <th class="p-3 text-left">Part No</th>
+              <th class="p-3 text-left">House No</th>
+              <th class="p-3 text-left">Name</th>
+              <th class="p-3 text-left">Relation Name</th>
+            </tr>
+          </thead>
+          <tbody id="results" class="divide-y divide-gray-200"></tbody>
+        </table>
+      </div>
+      <div id="empty" class="hidden p-8 text-center text-gray-500">No results found</div>
+    </div>
+  </div>
 
-            // Display results
-            display(filtered);
+  <script>
+    let rawData = [];
+    let indexedData = [];
+
+    function normalizeText(value) {
+      return String(value ?? "")
+        .toUpperCase()
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^A-Z0-9]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function normalizeNumberLike(value) {
+      return String(value ?? "")
+        .toUpperCase()
+        .replace(/\s+/g, "")
+        .trim();
+    }
+
+    async function loadData() {
+      try {
+        const response = await fetch("./voter_data.json", { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error("Could not load voter_data.json");
         }
 
-        function display(results) {
-            const tbody = document.getElementById('results');
-            const empty = document.getElementById('empty');
-            const count = document.getElementById('count');
-            
-            tbody.innerHTML = '';
-            count.innerText = `Found ${results.length} results`;
+        rawData = await response.json();
 
-            if (results.length === 0) {
-                empty.classList.remove('hidden');
-            } else {
-                empty.classList.add('hidden');
-                // Show first 100 only for performance
-                results.slice(0, 100).forEach(item => {
-                    const row = `
-                        <tr class="hover:bg-gray-50 border-b">
-                            <td class="p-3 font-bold text-indigo-600">${item.part_no || '-'}</td>
-                            <td class="p-3 font-semibold">${item.NAME_ENG || '-'}</td>
-                            <td class="p-3 text-gray-600">${item.RELATION_NAME || '-'}</td>
-                            <td class="p-3 font-mono text-sm">${item.New_Hno || '-'}</td>
-                        </tr>
-                    `;
-                    tbody.innerHTML += row;
-                });
-            }
-        }
+        document.getElementById("statusMsg").className =
+          "bg-yellow-100 text-yellow-800 p-3 rounded mb-5 text-center font-semibold";
+        document.getElementById("statusMsg").innerText =
+          "Data loaded. Preparing search index...";
 
-        // Allow Enter key to search
-        document.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') search();
-        });
-    </script>
+        indexedData = rawData.map(item => ({
+          original: item,
+          name: normalizeText(item.NAME_ENG),
+          relation: normalizeText(item.RELATION_NAME),
+          part: normalizeNumberLike(item.part_no),
+          hno: normalizeNumberLike(item.New_Hno)
+        }));
+
+        document.getElementById("statusMsg").className =
+          "bg-green-100 text-green-800 p-3 rounded mb-5 text-center font-semibold";
+        document.getElementById("statusMsg").innerText =
+          `Data ready! (${rawData.length} records loaded)`;
+
+        document.getElementById("searchBtn").disabled = false;
+      } catch (error) {
+        document.getElementById("statusMsg").className =
+          "bg-red-100 text-red-800 p-3 rounded mb-5 text-center font-semibold";
+        document.getElementById("statusMsg").innerText =
+          "Error loading data: " + error.message;
+      }
+    }
+
+    function matchesAllWords(source, query) {
+      if (!query) return true;
+      const words = query.split(" ").filter(Boolean);
+      return words.every(word => source.includes(word));
+    }
+
+    function searchData() {
+      const nameQuery = normalizeText(document.getElementById("name").value);
+      const relationQuery = normalizeText(document.getElementById("relation").value);
+      const partQuery = normalizeNumberLike(document.getElementById("part").value);
+      const hnoQuery = normalizeNumberLike(document.getElementById("hno").value);
+
+      const filtered = indexedData.filter(item => {
+        const matchName = !nameQuery || matchesAllWords(item.name, nameQuery);
+        const matchRelation = !relationQuery || matchesAllWords(item.relation, relationQuery);
+        const matchPart = !partQuery || item.part === partQuery;
+        const matchHno = !hnoQuery || item.hno.includes(hnoQuery);
+
+        return matchName && matchRelation && matchPart && matchHno;
+      });
+
+      displayResults(filtered);
+    }
+
+    function displayResults(results) {
+      const tbody = document.getElementById("results");
+      const empty = document.getElementById("empty");
+      const count = document.getElementById("count");
+
+      tbody.innerHTML = "";
+
+      count.innerText = `Found ${results.length} result${results.length === 1 ? "" : "s"}${results.length > 300 ? " (showing first 300)" : ""}`;
+
+      if (results.length === 0) {
+        empty.classList.remove("hidden");
+        return;
+      }
+
+      empty.classList.add("hidden");
+
+      results.slice(0, 300).forEach(item => {
+        const row = item.original;
+        tbody.innerHTML += `
+          <tr class="hover:bg-gray-50">
+            <td class="p-3 font-semibold text-indigo-700">${row.part_no ?? "-"}</td>
+            <td class="p-3">${row.New_Hno ?? "-"}</td>
+            <td class="p-3 font-semibold">${row.NAME_ENG ?? "-"}</td>
+            <td class="p-3">${row.RELATION_NAME ?? "-"}</td>
+          </tr>
+        `;
+      });
+    }
+
+    function clearSearch() {
+      document.getElementById("name").value = "";
+      document.getElementById("relation").value = "";
+      document.getElementById("part").value = "";
+      document.getElementById("hno").value = "";
+      document.getElementById("results").innerHTML = "";
+      document.getElementById("empty").classList.add("hidden");
+      document.getElementById("count").innerText = "";
+    }
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        searchData();
+      }
+    });
+
+    loadData();
+  </script>
 </body>
 </html>
