@@ -3,176 +3,140 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voter Search - Constituency Portal</title>
+    <title>Voter Search</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        .loading-spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 2s linear infinite;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .hidden { display: none; }
-    </style>
 </head>
-<body class="bg-slate-50 font-sans text-gray-900">
-
-    <div class="max-w-7xl mx-auto px-4 py-8">
-        <div class="text-center mb-10">
-            <h1 class="text-3xl font-bold text-indigo-900">Voter Search Portal</h1>
-            <p class="text-gray-600 mt-2">Search the Constituency Database</p>
+<body class="bg-gray-100 p-4">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-2xl font-bold text-center mb-6 text-indigo-900">Voter Search Portal</h1>
+        
+        <!-- Status Message -->
+        <div id="statusMsg" class="bg-blue-100 text-blue-800 p-3 rounded mb-4 text-center font-semibold">
+            Loading 77MB data... please wait...
         </div>
 
-        <!-- Search Box -->
-        <div class="bg-white p-6 rounded-xl shadow-md mb-8">
-            <div id="loadingData" class="flex items-center justify-center space-x-3 mb-4">
-                <div class="loading-spinner"></div>
-                <span id="loadText" class="text-sm font-medium text-blue-600">Downloading database (77MB)... please wait.</span>
+        <!-- Search Form -->
+        <div class="bg-white p-4 rounded shadow mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div>
+                <label class="block text-xs font-bold text-gray-600 mb-1">Voter Name</label>
+                <input type="text" id="name" class="w-full border p-2 rounded" placeholder="Enter name">
             </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Voter Name</label>
-                    <input type="text" id="searchName" placeholder="Enter Name..." class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">EPIC Number</label>
-                    <input type="text" id="searchEpic" placeholder="ABC1234567" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">House Number</label>
-                    <input type="text" id="searchHno" placeholder="e.g. 1-23" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Part Number</label>
-                    <input type="number" id="searchPart" placeholder="e.g. 145" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
-                </div>
+            <div>
+                <label class="block text-xs font-bold text-gray-600 mb-1">Part Number</label>
+                <input type="text" id="part" class="w-full border p-2 rounded" placeholder="e.g. 16">
             </div>
-            
-            <button onclick="performSearch()" id="searchBtn" disabled class="mt-6 w-full bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 transition disabled:bg-gray-300">
-                Loading Data...
-            </button>
+            <div>
+                <label class="block text-xs font-bold text-gray-600 mb-1">House Number</label>
+                <input type="text" id="hno" class="w-full border p-2 rounded" placeholder="e.g. 1-23">
+            </div>
+            <div class="flex items-end">
+                <button onclick="search()" id="btn" disabled class="w-full bg-indigo-600 text-white p-2 rounded font-bold disabled:bg-gray-400">
+                    Search
+                </button>
+            </div>
         </div>
 
-        <div id="resultStats" class="mb-4 text-sm font-bold text-indigo-800 hidden"></div>
+        <!-- Results Count -->
+        <div id="count" class="mb-2 font-semibold text-gray-700"></div>
 
         <!-- Results Table -->
-        <div class="bg-white rounded-xl shadow-md overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-indigo-900 text-white text-xs uppercase tracking-wider">
-                            <th class="p-4">Part / SL</th>
-                            <th class="p-4">EPIC</th>
-                            <th class="p-4">Name</th>
-                            <th class="p-4">Relation</th>
-                            <th class="p-4">Age/Sex</th>
-                            <th class="p-4">House No</th>
-                        </tr>
-                    </thead>
-                    <tbody id="resultsBody" class="divide-y divide-gray-200"></tbody>
-                </table>
-            </div>
-            <div id="noResults" class="p-10 text-center text-gray-500 hidden">
-                <p>No voters found. Try different keywords.</p>
-                <div id="debugInfo" class="mt-4 p-4 bg-gray-100 rounded text-left text-xs font-mono hidden"></div>
-            </div>
+        <div class="bg-white rounded shadow overflow-hidden">
+            <table class="w-full text-sm">
+                <thead class="bg-indigo-900 text-white">
+                    <tr>
+                        <th class="p-3 text-left">Part No</th>
+                        <th class="p-3 text-left">Name</th>
+                        <th class="p-3 text-left">Relation</th>
+                        <th class="p-3 text-left">House No</th>
+                    </tr>
+                </thead>
+                <tbody id="results" class="divide-y divide-gray-200"></tbody>
+            </table>
+            <div id="empty" class="p-8 text-center text-gray-500 hidden">No results found</div>
         </div>
     </div>
 
     <script>
-        let voterData = [];
+        let data = [];
+        let isLoaded = false;
 
-        // Function to find value by flexible key name
-        function getValue(obj, possibleKeys) {
-            for (let key of possibleKeys) {
-                if (obj.hasOwnProperty(key)) return obj[key];
-                // Try case-insensitive
-                let foundKey = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
-                if (foundKey) return obj[foundKey];
-            }
-            return "";
-        }
-
-        async function loadData() {
-            try {
-                const response = await fetch('./voter_data.json');
-                voterData = await response.json();
-                document.getElementById('loadingData').classList.add('hidden');
-                document.getElementById('searchBtn').disabled = false;
-                document.getElementById('searchBtn').innerText = "Search Voter";
-                console.log("Data Loaded. Example Record:", voterData[0]);
-            } catch (error) {
-                document.getElementById('loadText').innerHTML = "❌ Error: Could not read 77MB file.";
-            }
-        }
-
-        function performSearch() {
-            const nameQ = document.getElementById('searchName').value.toUpperCase().trim();
-            const epicQ = document.getElementById('searchEpic').value.toUpperCase().trim();
-            const hnoQ = document.getElementById('searchHno').value.trim();
-            const partQ = document.getElementById('searchPart').value.trim();
-
-            if (!nameQ && !epicQ && !hnoQ && !partQ) {
-                alert("Please enter a name or EPIC number.");
-                return;
-            }
-
-            // Start filtering
-            const results = voterData.filter(v => {
-                // We use getValue with multiple possible names from common Excel exports
-                const vName = getValue(v, ['NAME_ENG', 'Voter Name', 'NAME_EN', 'NAME']).toString().toUpperCase();
-                const vEpic = getValue(v, ['EPIC', 'EPIC_NO', 'EPIC NO', 'Voter ID']).toString().toUpperCase();
-                const vHno = getValue(v, ['New_Hno', 'House No', 'HOUSE_NO', 'H_NO']).toString();
-                const vPart = getValue(v, ['part_no', 'PART', 'PART_NO', 'Part No']).toString();
-
-                const matchName = !nameQ || vName.includes(nameQ);
-                const matchEpic = !epicQ || vEpic.includes(epicQ);
-                const matchHno = !hnoQ || vHno.includes(hnoQ);
-                const matchPart = !partQ || vPart === partQ;
-
-                return matchName && matchEpic && matchHno && matchPart;
+        // Load the JSON file
+        fetch('./voter_data.json')
+            .then(response => {
+                if (!response.ok) throw new Error("File not found");
+                return response.json();
+            })
+            .then(json => {
+                data = json;
+                isLoaded = true;
+                document.getElementById('statusMsg').className = "bg-green-100 text-green-800 p-3 rounded mb-4 text-center font-semibold";
+                document.getElementById('statusMsg').innerText = `✅ Data loaded successfully! (${data.length} records)`;
+                document.getElementById('btn').disabled = false;
+                console.log("Sample record:", data[0]); // Check console for actual field names
+            })
+            .catch(err => {
+                document.getElementById('statusMsg').className = "bg-red-100 text-red-800 p-3 rounded mb-4 text-center font-semibold";
+                document.getElementById('statusMsg').innerText = "❌ Error loading data: " + err.message;
             });
 
-            render(results);
+        function search() {
+            if (!isLoaded) return;
+
+            const nameVal = document.getElementById('name').value.toUpperCase().trim();
+            const partVal = document.getElementById('part').value.trim();
+            const hnoVal = document.getElementById('hno').value.trim();
+
+            // Filter logic - ALL fields are optional
+            const filtered = data.filter(item => {
+                // Get values safely (handle undefined)
+                const name = (item.NAME_ENG || "").toUpperCase();
+                const part = String(item.part_no || "");
+                const hno = String(item.New_Hno || "");
+                const rel = item.RELATION_NAME || "";
+
+                // Check matches
+                const matchName = !nameVal || name.includes(nameVal);
+                const matchPart = !partVal || part === partVal;
+                const matchHno = !hnoVal || hno.includes(hnoVal);
+
+                return matchName && matchPart && matchHno;
+            });
+
+            // Display results
+            display(filtered);
         }
 
-        function render(results) {
-            const tbody = document.getElementById('resultsBody');
-            const noRes = document.getElementById('noResults');
-            const stats = document.getElementById('resultStats');
-            const debug = document.getElementById('debugInfo');
-
-            tbody.innerHTML = "";
-            stats.classList.remove('hidden');
-            stats.innerText = `Found ${results.length} results.`;
+        function display(results) {
+            const tbody = document.getElementById('results');
+            const empty = document.getElementById('empty');
+            const count = document.getElementById('count');
+            
+            tbody.innerHTML = '';
+            count.innerText = `Found ${results.length} results`;
 
             if (results.length === 0) {
-                noRes.classList.remove('hidden');
-                debug.classList.remove('hidden');
-                // Displaying keys of the first record so we can see what the names actually are
-                debug.innerHTML = "<strong>System Debug:</strong> Your JSON uses these Column Names:<br>" + Object.keys(voterData[0]).join(", ");
+                empty.classList.remove('hidden');
             } else {
-                noRes.classList.add('hidden');
-                results.slice(0, 100).forEach(v => {
+                empty.classList.add('hidden');
+                // Show first 100 only for performance
+                results.slice(0, 100).forEach(item => {
                     const row = `
-                        <tr class="hover:bg-blue-50">
-                            <td class="p-4 text-sm font-bold">P: ${getValue(v, ['part_no', 'PART_NO'])}<br><span class="text-gray-400 font-normal">SL: ${getValue(v, ['slnoinpart', 'SL_NO'])}</span></td>
-                            <td class="p-4 text-sm font-mono font-bold">${getValue(v, ['EPIC', 'EPIC_NO'])}</td>
-                            <td class="p-4 text-sm font-bold text-indigo-900">${getValue(v, ['NAME_ENG', 'Voter Name', 'NAME'])}</td>
-                            <td class="p-4 text-sm">${getValue(v, ['RELATION NAME', 'FATHER_NAME'])}</td>
-                            <td class="p-4 text-sm">${getValue(v, ['age', 'AGE'])} / ${getValue(v, ['sex', 'SEX'])}</td>
-                            <td class="p-4 text-sm font-bold">${getValue(v, ['New_Hno', 'HOUSE_NO'])}</td>
-                        </tr>`;
+                        <tr class="hover:bg-gray-50 border-b">
+                            <td class="p-3 font-bold text-indigo-600">${item.part_no || '-'}</td>
+                            <td class="p-3 font-semibold">${item.NAME_ENG || '-'}</td>
+                            <td class="p-3 text-gray-600">${item.RELATION_NAME || '-'}</td>
+                            <td class="p-3 font-mono text-sm">${item.New_Hno || '-'}</td>
+                        </tr>
+                    `;
                     tbody.innerHTML += row;
                 });
             }
         }
 
-        loadData();
+        // Allow Enter key to search
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') search();
+        });
     </script>
 </body>
 </html>
