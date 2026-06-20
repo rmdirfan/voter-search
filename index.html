@@ -1,364 +1,181 @@
 <!DOCTYPE html>
-<html lang="te">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>వోటర్ శోధన - Voter Search</title>
+    <title>Voter Search - Constituency Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Tahoma, sans-serif;
-            background: #f0f2f5;
-            min-height: 100vh;
-            padding: 20px;
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 2s linear infinite;
         }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        .header {
-            background: linear-gradient(135deg, #1a237e, #283593);
-            color: white;
-            padding: 30px;
-            border-radius: 15px;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .header h1 { font-size: 28px; margin-bottom: 5px; }
-        .header p { font-size: 14px; opacity: 0.9; }
-        .search-box {
-            background: white;
-            padding: 20px;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        .input-group {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        input[type="text"] {
-            flex: 1;
-            padding: 14px 18px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 16px;
-            outline: none;
-            transition: border-color 0.3s;
-            min-width: 200px;
-        }
-        input[type="text"]:focus {
-            border-color: #1a237e;
-        }
-        button {
-            padding: 14px 30px;
-            background: #1a237e;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background 0.3s;
-            white-space: nowrap;
-        }
-        button:hover { background: #283593; }
-        button:disabled {
-            background: #9e9e9e;
-            cursor: not-allowed;
-        }
-        .stats {
-            background: #e8eaf6;
-            padding: 10px 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-            font-size: 14px;
-            color: #333;
-        }
-        .results {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-        .result-item {
-            padding: 15px 20px;
-            border-bottom: 1px solid #f0f0f0;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .result-item:hover { background: #f5f5f5; }
-        .result-item:last-child { border-bottom: none; }
-        .result-name {
-            font-size: 18px;
-            font-weight: 600;
-            color: #1a237e;
-        }
-        .result-details {
-            font-size: 14px;
-            color: #666;
-            margin-top: 5px;
-        }
-        .result-details span {
-            margin-right: 15px;
-        }
-        .no-results {
-            padding: 40px;
-            text-align: center;
-            color: #999;
-        }
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-        }
-        .share-btn {
-            display: inline-block;
-            margin-top: 10px;
-            padding: 8px 16px;
-            background: #25D366;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 13px;
-            cursor: pointer;
-        }
-        .share-btn:hover { opacity: 0.9; }
-        .footer {
-            text-align: center;
-            padding: 20px;
-            color: #999;
-            font-size: 13px;
-        }
-        @media (max-width: 500px) {
-            .header h1 { font-size: 22px; }
-            .input-group { flex-direction: column; }
-            button { width: 100%; }
-        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .hidden { display: none; }
     </style>
 </head>
-<body>
-    <div class="container">
+<body class="bg-slate-50 font-sans text-gray-900">
+
+    <div class="max-w-7xl mx-auto px-4 py-8">
         <!-- Header -->
-        <div class="header">
-            <h1>🗳️ వోటర్ శోధన</h1>
-            <p>Voter List Search — Type a name to find your details</p>
+        <div class="text-center mb-10">
+            <h1 class="text-3xl font-bold text-indigo-900">Voter Search Portal</h1>
+            <p class="text-gray-600 mt-2">Search by Name, EPIC, or House Number</p>
         </div>
 
         <!-- Search Box -->
-        <div class="search-box">
-            <div class="input-group">
-                <input type="text" id="searchInput" 
-                       placeholder="Enter name (English or Telugu)..." 
-                       onkeyup="handleSearch(event)">
-                <button id="searchBtn" onclick="handleSearch()">🔍 Search</button>
+        <div class="bg-white p-6 rounded-xl shadow-md mb-8">
+            <div id="loadingData" class="flex items-center justify-center space-x-3 mb-4">
+                <div class="loading-spinner"></div>
+                <span class="text-sm font-medium text-blue-600">Loading database (77MB)... please wait.</span>
             </div>
-            <div class="stats" id="stats">Loading voter data... 📂</div>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Voter Name</label>
+                    <input type="text" id="searchName" placeholder="Enter Name..." class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">EPIC Number</label>
+                    <input type="text" id="searchEpic" placeholder="ABC1234567" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">House Number</label>
+                    <input type="text" id="searchHno" placeholder="e.g. 1-23" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Part Number</label>
+                    <input type="number" id="searchPart" placeholder="e.g. 145" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+            </div>
+            
+            <button onclick="performSearch()" id="searchBtn" disabled class="mt-6 w-full bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 transition disabled:bg-gray-300">
+                Search Voter
+            </button>
         </div>
 
-        <!-- Results -->
-        <div class="results" id="results">
-            <div class="loading">Loading voter data... Please wait ⏳</div>
-        </div>
+        <!-- Stats -->
+        <div id="resultStats" class="mb-4 text-sm text-gray-600 hidden"></div>
 
-        <div class="footer">
-            Data from Election Commission | Built for public use ❤️
+        <!-- Results Table -->
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-indigo-900 text-white text-xs uppercase tracking-wider">
+                            <th class="p-4">Part / SL</th>
+                            <th class="p-4">EPIC</th>
+                            <th class="p-4">Name</th>
+                            <th class="p-4">Relation (RLTY)</th>
+                            <th class="p-4">Age/Sex</th>
+                            <th class="p-4">House No</th>
+                            <th class="p-4">Polling Station</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsBody" class="divide-y divide-gray-200">
+                        <!-- Rows injected here -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="noResults" class="p-10 text-center text-gray-500 hidden">
+                No voters found matching those details.
+            </div>
         </div>
     </div>
 
     <script>
-        // =============================================
-        // 1. Load voter data
-        // =============================================
         let voterData = [];
-        let allColumns = [];
 
+        // 1. Fetch the 77MB File
         async function loadData() {
             try {
-                const response = await fetch('voter_data.json');
-                if (!response.ok) throw new Error('Data file not found');
-                const data = await response.json();
+                const response = await fetch('./voter_data.json');
+                voterData = await response.json();
                 
-                // Handle both array and object formats
-                if (Array.isArray(data)) {
-                    voterData = data;
-                } else if (data && typeof data === 'object') {
-                    // Extract keys (column names)
-                    allColumns = Object.keys(data);
-                    // Convert to array of objects
-                    const firstKey = allColumns[0];
-                    if (Array.isArray(data[firstKey])) {
-                        voterData = data[firstKey].map((_, idx) => {
-                            let obj = {};
-                            allColumns.forEach(col => {
-                                obj[col] = data[col][idx];
-                            });
-                            return obj;
-                        });
-                    }
-                }
-
-                if (voterData.length > 0) {
-                    allColumns = Object.keys(voterData[0]);
-                    document.getElementById('stats').innerHTML = 
-                        `✅ Loaded <strong>${voterData.length.toLocaleString()}</strong> voter records`;
-                    document.getElementById('results').innerHTML = 
-                        `<div class="no-results">🔍 Start typing above to search for a voter</div>`;
-                } else {
-                    throw new Error('No data found');
-                }
+                // Enable UI
+                document.getElementById('loadingData').classList.add('hidden');
+                document.getElementById('searchBtn').disabled = false;
+                document.getElementById('searchBtn').innerText = "Search Voter";
             } catch (error) {
-                document.getElementById('stats').innerHTML = '❌ Error loading data: ' + error.message;
-                document.getElementById('results').innerHTML = 
-                    `<div class="no-results">❌ Could not load voter data. Make sure <strong>voter_data.json</strong> is uploaded.</div>`;
+                console.error("Error loading JSON:", error);
+                document.getElementById('loadingData').innerHTML = "❌ Failed to load database.";
             }
         }
 
-        // =============================================
-        // 2. English → Telugu Transliteration (Basic)
-        // =============================================
-        // This maps common English spellings to Telugu
-        // You can expand this list as needed
-        const enToTeMap = {
-            'a': 'అ', 'aa': 'ఆ', 'i': 'ఇ', 'ee': 'ఈ', 'u': 'ఉ', 'oo': 'ఊ',
-            'e': 'ఎ', 'ae': 'ఏ', 'ai': 'ఐ', 'o': 'ఒ', 'oa': 'ఓ', 'ou': 'ఔ',
-            'ka': 'క', 'kha': 'ఖ', 'ga': 'గ', 'gha': 'ఘ', 'nga': 'ఙ',
-            'cha': 'చ', 'chha': 'ఛ', 'ja': 'జ', 'jha': 'ఝ', 'nya': 'ఞ',
-            'ta': 'ట', 'tha': 'ఠ', 'da': 'డ', 'dha': 'ఢ', 'na': 'ణ',
-            'ta': 'త', 'tha': 'థ', 'da': 'ద', 'dha': 'ధ', 'na': 'న',
-            'pa': 'ప', 'pha': 'ఫ', 'ba': 'బ', 'bha': 'భ', 'ma': 'మ',
-            'ya': 'య', 'ra': 'ర', 'la': 'ల', 'va': 'వ', 'sha': 'శ',
-            'sha': 'ష', 'sa': 'స', 'ha': 'హ', 'la': 'ళ', 'ksha': 'క్ష',
-            'jna': 'జ్ఞ',
-            // Common name prefixes/suffixes
-            'ram': 'రామ్', 'krishna': 'కృష్ణ', 'venkata': 'వెంకట',
-            'surya': 'సూర్య', 'naga': 'నాగ', 'sai': 'సాయి',
-            'rao': 'రావు', 'reddy': 'రెడ్డి', 'naidu': 'నాయుడు',
-            'prasad': 'ప్రసాద్', 'kumar': 'కుమార్', 'babu': 'బాబు',
-            // Numbers in names
-            '1': '౧', '2': '౨', '3': '౩', '4': '౪', '5': '౫',
-            '6': '౬', '7': '౭', '8': '౮', '9': '౯', '0': '౦'
-        };
+        // 2. Search Logic
+        function performSearch() {
+            const nameQuery = document.getElementById('searchName').value.toUpperCase().trim();
+            const epicQuery = document.getElementById('searchEpic').value.toUpperCase().trim();
+            const hnoQuery = document.getElementById('searchHno').value.trim();
+            const partQuery = document.getElementById('searchPart').value.trim();
 
-        function englishToTelugu(text) {
-            text = text.toLowerCase().trim();
-            let result = '';
-            let i = 0;
-            while (i < text.length) {
-                // Try matching longer patterns first (3 chars, then 2, then 1)
-                let matched = false;
-                for (let len = 6; len >= 1; len--) {
-                    let chunk = text.substring(i, i + len);
-                    if (enToTeMap[chunk]) {
-                        result += enToTeMap[chunk];
-                        i += len;
-                        matched = true;
-                        break;
-                    }
-                }
-                if (!matched) {
-                    result += text[i];
-                    i++;
-                }
-            }
-            return result;
-        }
-
-        // =============================================
-        // 3. Search function
-        // =============================================
-        function handleSearch(event) {
-            if (event && event.key && event.key !== 'Enter') return;
-            
-            const input = document.getElementById('searchInput');
-            const query = input.value.trim();
-            const resultsDiv = document.getElementById('results');
-            
-            if (!query) {
-                resultsDiv.innerHTML = `<div class="no-results">🔍 Start typing above to search for a voter</div>`;
-                document.getElementById('stats').innerHTML = 
-                    `✅ Loaded <strong>${voterData.length.toLocaleString()}</strong> voter records`;
+            if (!nameQuery && !epicQuery && !hnoQuery && !partQuery) {
+                alert("Please enter at least one search criteria");
                 return;
             }
 
-            // Generate Telugu version of the query
-            const teluguQuery = englishToTelugu(query);
-
-            // Search in all text columns
-            const results = voterData.filter(row => {
-                return Object.values(row).some(val => {
-                    const strVal = String(val || '').toLowerCase();
-                    return strVal.includes(query.toLowerCase()) || 
-                           strVal.includes(teluguQuery.toLowerCase());
-                });
+            const results = voterData.filter(voter => {
+                const matchName = !nameQuery || (voter.NAME_ENG && voter.NAME_ENG.toUpperCase().includes(nameQuery));
+                const matchEpic = !epicQuery || (voter.EPIC && voter.EPIC.toUpperCase().includes(epicQuery));
+                const matchHno = !hnoQuery || (voter.New_Hno && voter.New_Hno.toString().includes(hnoQuery));
+                const matchPart = !partQuery || (voter.part_no && voter.part_no.toString() === partQuery);
+                
+                return matchName && matchEpic && matchHno && matchPart;
             });
 
-            // Show results
+            displayResults(results);
+        }
+
+        // 3. Render Results
+        function displayResults(results) {
+            const tbody = document.getElementById('resultsBody');
+            const stats = document.getElementById('resultStats');
+            const noResults = document.getElementById('noResults');
+            
+            tbody.innerHTML = '';
+            stats.classList.remove('hidden');
+            stats.innerText = `Found ${results.length} results.`;
+
             if (results.length === 0) {
-                resultsDiv.innerHTML = `
-                    <div class="no-results">
-                        😕 No voters found for "<strong>${query}</strong>"<br>
-                        <small>Try a different spelling or check the voter list</small>
-                    </div>
-                `;
+                noResults.classList.remove('hidden');
             } else {
-                resultsDiv.innerHTML = results.map((row, idx) => {
-                    // Find the name column (usually 'Name' or similar)
-                    const nameCol = allColumns.find(c => 
-                        c.toLowerCase().includes('name') || c.toLowerCase().includes('నామ్')
-                    ) || allColumns[1];
-                    
-                    const name = row[nameCol] || 'Unknown';
-                    
-                    // Build details string from other columns
-                    const details = allColumns
-                        .filter(c => c !== nameCol)
-                        .map(c => `${c}: ${row[c] || '-'}`)
-                        .join(' | ');
-                    
-                    // Create share text
-                    const shareText = encodeURIComponent(
-                        `🗳️ Voter Details:\nName: ${name}\n${allColumns.filter(c => c !== nameCol).map(c => `${c}: ${row[c] || '-'}`).join('\n')}\n\n🔍 Found via Voter Search App`
-                    );
-
-                    return `
-                        <div class="result-item">
-                            <div class="result-name">${name}</div>
-                            <div class="result-details">${details}</div>
-                            <button class="share-btn" onclick="window.open('https://wa.me/?text=${shareText}', '_blank')">
-                                📤 Share on WhatsApp
-                            </button>
-                            <button class="share-btn" style="background:#1877F2;" onclick="shareGeneric('${shareText}')">
-                                📤 Share
-                            </button>
-                        </div>
+                noResults.classList.add('hidden');
+                // Limit to 200 results for speed, you can remove slice(0,200) if needed
+                results.slice(0, 200).forEach(voter => {
+                    const row = `
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="p-4 text-sm">
+                                <span class="font-bold text-indigo-600">P:${voter.part_no}</span><br>
+                                <span class="text-xs text-gray-500">SL:${voter.slnoinpart}</span>
+                            </td>
+                            <td class="p-4 font-mono font-bold text-sm">${voter.EPIC || 'N/A'}</td>
+                            <td class="p-4">
+                                <div class="font-bold text-gray-800">${voter.NAME_ENG || ''}</div>
+                                <div class="text-xs text-gray-500">AC: ${voter.ac_no}</div>
+                            </td>
+                            <td class="p-4 text-sm text-gray-700">
+                                <strong>${voter.RLTY || ''}:</strong> ${voter['RELATION NAME'] || ''}
+                            </td>
+                            <td class="p-4 text-sm">
+                                ${voter.age} / ${voter.sex}
+                            </td>
+                            <td class="p-4 text-sm font-semibold">${voter.New_Hno || ''}</td>
+                            <td class="p-4 text-xs text-gray-500 max-w-xs truncate" title="${voter.Ps_Name_En}">
+                                ${voter.Ps_Name_En || ''}
+                            </td>
+                        </tr>
                     `;
-                }).join('');
-            }
-
-            // Update stats
-            document.getElementById('stats').innerHTML = 
-                `🔍 Found <strong>${results.length}</strong> result(s) for "${query}"` +
-                (teluguQuery !== query.toLowerCase() ? ` (also searching: ${teluguQuery})` : '');
-        }
-
-        function shareGeneric(text) {
-            if (navigator.share) {
-                navigator.share({
-                    title: 'Voter Details',
-                    text: decodeURIComponent(text)
+                    tbody.innerHTML += row;
                 });
-            } else {
-                // Fallback: copy to clipboard
-                navigator.clipboard.writeText(decodeURIComponent(text));
-                alert('📋 Details copied to clipboard!');
             }
         }
 
-        // =============================================
-        // 4. Load data on page load
-        // =============================================
-        window.onload = loadData;
+        // Initialize
+        loadData();
     </script>
 </body>
 </html>
