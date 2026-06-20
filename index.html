@@ -21,17 +21,16 @@
 <body class="bg-slate-50 font-sans text-gray-900">
 
     <div class="max-w-7xl mx-auto px-4 py-8">
-        <!-- Header -->
         <div class="text-center mb-10">
             <h1 class="text-3xl font-bold text-indigo-900">Voter Search Portal</h1>
-            <p class="text-gray-600 mt-2">Search by Name, EPIC, or House Number</p>
+            <p class="text-gray-600 mt-2">Search the Constituency Database</p>
         </div>
 
         <!-- Search Box -->
         <div class="bg-white p-6 rounded-xl shadow-md mb-8">
             <div id="loadingData" class="flex items-center justify-center space-x-3 mb-4">
                 <div class="loading-spinner"></div>
-                <span class="text-sm font-medium text-blue-600">Loading database (77MB)... please wait.</span>
+                <span id="loadText" class="text-sm font-medium text-blue-600">Downloading database (77MB)... please wait.</span>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -54,12 +53,11 @@
             </div>
             
             <button onclick="performSearch()" id="searchBtn" disabled class="mt-6 w-full bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 transition disabled:bg-gray-300">
-                Search Voter
+                Loading Data...
             </button>
         </div>
 
-        <!-- Stats -->
-        <div id="resultStats" class="mb-4 text-sm text-gray-600 hidden"></div>
+        <div id="resultStats" class="mb-4 text-sm font-bold text-indigo-800 hidden"></div>
 
         <!-- Results Table -->
         <div class="bg-white rounded-xl shadow-md overflow-hidden">
@@ -70,19 +68,17 @@
                             <th class="p-4">Part / SL</th>
                             <th class="p-4">EPIC</th>
                             <th class="p-4">Name</th>
-                            <th class="p-4">Relation (RLTY)</th>
+                            <th class="p-4">Relation</th>
                             <th class="p-4">Age/Sex</th>
                             <th class="p-4">House No</th>
-                            <th class="p-4">Polling Station</th>
                         </tr>
                     </thead>
-                    <tbody id="resultsBody" class="divide-y divide-gray-200">
-                        <!-- Rows injected here -->
-                    </tbody>
+                    <tbody id="resultsBody" class="divide-y divide-gray-200"></tbody>
                 </table>
             </div>
             <div id="noResults" class="p-10 text-center text-gray-500 hidden">
-                No voters found matching those details.
+                <p>No voters found. Try different keywords.</p>
+                <div id="debugInfo" class="mt-4 p-4 bg-gray-100 rounded text-left text-xs font-mono hidden"></div>
             </div>
         </div>
     </div>
@@ -90,91 +86,92 @@
     <script>
         let voterData = [];
 
-        // 1. Fetch the 77MB File
+        // Function to find value by flexible key name
+        function getValue(obj, possibleKeys) {
+            for (let key of possibleKeys) {
+                if (obj.hasOwnProperty(key)) return obj[key];
+                // Try case-insensitive
+                let foundKey = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
+                if (foundKey) return obj[foundKey];
+            }
+            return "";
+        }
+
         async function loadData() {
             try {
                 const response = await fetch('./voter_data.json');
                 voterData = await response.json();
-                
-                // Enable UI
                 document.getElementById('loadingData').classList.add('hidden');
                 document.getElementById('searchBtn').disabled = false;
                 document.getElementById('searchBtn').innerText = "Search Voter";
+                console.log("Data Loaded. Example Record:", voterData[0]);
             } catch (error) {
-                console.error("Error loading JSON:", error);
-                document.getElementById('loadingData').innerHTML = "❌ Failed to load database.";
+                document.getElementById('loadText').innerHTML = "❌ Error: Could not read 77MB file.";
             }
         }
 
-        // 2. Search Logic
         function performSearch() {
-            const nameQuery = document.getElementById('searchName').value.toUpperCase().trim();
-            const epicQuery = document.getElementById('searchEpic').value.toUpperCase().trim();
-            const hnoQuery = document.getElementById('searchHno').value.trim();
-            const partQuery = document.getElementById('searchPart').value.trim();
+            const nameQ = document.getElementById('searchName').value.toUpperCase().trim();
+            const epicQ = document.getElementById('searchEpic').value.toUpperCase().trim();
+            const hnoQ = document.getElementById('searchHno').value.trim();
+            const partQ = document.getElementById('searchPart').value.trim();
 
-            if (!nameQuery && !epicQuery && !hnoQuery && !partQuery) {
-                alert("Please enter at least one search criteria");
+            if (!nameQ && !epicQ && !hnoQ && !partQ) {
+                alert("Please enter a name or EPIC number.");
                 return;
             }
 
-            const results = voterData.filter(voter => {
-                const matchName = !nameQuery || (voter.NAME_ENG && voter.NAME_ENG.toUpperCase().includes(nameQuery));
-                const matchEpic = !epicQuery || (voter.EPIC && voter.EPIC.toUpperCase().includes(epicQuery));
-                const matchHno = !hnoQuery || (voter.New_Hno && voter.New_Hno.toString().includes(hnoQuery));
-                const matchPart = !partQuery || (voter.part_no && voter.part_no.toString() === partQuery);
-                
+            // Start filtering
+            const results = voterData.filter(v => {
+                // We use getValue with multiple possible names from common Excel exports
+                const vName = getValue(v, ['NAME_ENG', 'Voter Name', 'NAME_EN', 'NAME']).toString().toUpperCase();
+                const vEpic = getValue(v, ['EPIC', 'EPIC_NO', 'EPIC NO', 'Voter ID']).toString().toUpperCase();
+                const vHno = getValue(v, ['New_Hno', 'House No', 'HOUSE_NO', 'H_NO']).toString();
+                const vPart = getValue(v, ['part_no', 'PART', 'PART_NO', 'Part No']).toString();
+
+                const matchName = !nameQ || vName.includes(nameQ);
+                const matchEpic = !epicQ || vEpic.includes(epicQ);
+                const matchHno = !hnoQ || vHno.includes(hnoQ);
+                const matchPart = !partQ || vPart === partQ;
+
                 return matchName && matchEpic && matchHno && matchPart;
             });
 
-            displayResults(results);
+            render(results);
         }
 
-        // 3. Render Results
-        function displayResults(results) {
+        function render(results) {
             const tbody = document.getElementById('resultsBody');
+            const noRes = document.getElementById('noResults');
             const stats = document.getElementById('resultStats');
-            const noResults = document.getElementById('noResults');
-            
-            tbody.innerHTML = '';
+            const debug = document.getElementById('debugInfo');
+
+            tbody.innerHTML = "";
             stats.classList.remove('hidden');
             stats.innerText = `Found ${results.length} results.`;
 
             if (results.length === 0) {
-                noResults.classList.remove('hidden');
+                noRes.classList.remove('hidden');
+                debug.classList.remove('hidden');
+                // Displaying keys of the first record so we can see what the names actually are
+                debug.innerHTML = "<strong>System Debug:</strong> Your JSON uses these Column Names:<br>" + Object.keys(voterData[0]).join(", ");
             } else {
-                noResults.classList.add('hidden');
-                // Limit to 200 results for speed, you can remove slice(0,200) if needed
-                results.slice(0, 200).forEach(voter => {
+                noRes.classList.add('hidden');
+                results.slice(0, 100).forEach(v => {
                     const row = `
-                        <tr class="hover:bg-slate-50 transition">
-                            <td class="p-4 text-sm">
-                                <span class="font-bold text-indigo-600">P:${voter.part_no}</span><br>
-                                <span class="text-xs text-gray-500">SL:${voter.slnoinpart}</span>
-                            </td>
-                            <td class="p-4 font-mono font-bold text-sm">${voter.EPIC || 'N/A'}</td>
-                            <td class="p-4">
-                                <div class="font-bold text-gray-800">${voter.NAME_ENG || ''}</div>
-                                <div class="text-xs text-gray-500">AC: ${voter.ac_no}</div>
-                            </td>
-                            <td class="p-4 text-sm text-gray-700">
-                                <strong>${voter.RLTY || ''}:</strong> ${voter['RELATION NAME'] || ''}
-                            </td>
-                            <td class="p-4 text-sm">
-                                ${voter.age} / ${voter.sex}
-                            </td>
-                            <td class="p-4 text-sm font-semibold">${voter.New_Hno || ''}</td>
-                            <td class="p-4 text-xs text-gray-500 max-w-xs truncate" title="${voter.Ps_Name_En}">
-                                ${voter.Ps_Name_En || ''}
-                            </td>
-                        </tr>
-                    `;
+                        <tr class="hover:bg-blue-50">
+                            <td class="p-4 text-sm font-bold">P: ${getValue(v, ['part_no', 'PART_NO'])}<br><span class="text-gray-400 font-normal">SL: ${getValue(v, ['slnoinpart', 'SL_NO'])}</span></td>
+                            <td class="p-4 text-sm font-mono font-bold">${getValue(v, ['EPIC', 'EPIC_NO'])}</td>
+                            <td class="p-4 text-sm font-bold text-indigo-900">${getValue(v, ['NAME_ENG', 'Voter Name', 'NAME'])}</td>
+                            <td class="p-4 text-sm">${getValue(v, ['RELATION NAME', 'FATHER_NAME'])}</td>
+                            <td class="p-4 text-sm">${getValue(v, ['age', 'AGE'])} / ${getValue(v, ['sex', 'SEX'])}</td>
+                            <td class="p-4 text-sm font-bold">${getValue(v, ['New_Hno', 'HOUSE_NO'])}</td>
+                        </tr>`;
                     tbody.innerHTML += row;
                 });
             }
         }
 
-        // Initialize
         loadData();
     </script>
 </body>
