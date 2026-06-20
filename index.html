@@ -121,11 +121,11 @@
       }
 
       searchResults = allData.filter(d => {
-        const name = norm(d.NAME_ENG);
-        const rel = norm(d.RELATION_NAME);
-        const hno = rawNorm(d.New_Hno);
-        const epic = rawNorm(d.EPIC);
-        const part = String(d.part_no ?? '').trim();
+        const name = norm(d['NAME_ENG']);
+        const rel = norm(d['RELATION NAME']);
+        const hno = rawNorm(d['New_Hno']);
+        const epic = rawNorm(d['EPIC']);
+        const part = String(d['part_no'] ?? '').trim();
 
         const mName = !qName || name.includes(qName);
         const mRel = !qRel || rel.includes(qRel);
@@ -165,14 +165,14 @@
       page.forEach(d => {
         const row = `
           <tr class="hover:bg-gray-50 border-b">
-            <td class="p-3 font-bold text-indigo-700">${d.part_no ?? '-'}</td>
-            <td class="p-3">${d.slnoinpart ?? '-'}</td>
-            <td class="p-3 font-bold text-gray-900">${d.NAME_ENG ?? '-'}</td>
-            <td class="p-3">${d.RELATION_NAME ?? '-'}</td>
-            <td class="p-3 text-center">${d.age ?? '-'}</td>
-            <td class="p-3 text-center font-bold">${d.sex ?? '-'}</td>
-            <td class="p-3 font-mono">${d.New_Hno ?? '-'}</td>
-            <td class="p-3 font-mono text-xs text-indigo-600">${d.EPIC ?? '-'}</td>
+            <td class="p-3 font-bold text-indigo-700">${d['part_no'] ?? '-'}</td>
+            <td class="p-3">${d['slnoinpart'] ?? '-'}</td>
+            <td class="p-3 font-bold text-gray-900">${d['NAME_ENG'] ?? '-'}</td>
+            <td class="p-3">${d['RELATION NAME'] ?? '-'}</td>
+            <td class="p-3 text-center">${d['age'] ?? '-'}</td>
+            <td class="p-3 text-center font-bold">${d['sex'] ?? '-'}</td>
+            <td class="p-3 font-mono">${d['New_Hno'] ?? '-'}</td>
+            <td class="p-3 font-mono text-xs text-indigo-600">${d['EPIC'] ?? '-'}</td>
           </tr>
         `;
         tbody.innerHTML += row;
