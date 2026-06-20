@@ -7,7 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 text-gray-900">
-  <div class="max-w-7xl mx-auto px-4 py-8">
+  <div class="max-w-full mx-auto px-4 py-8">
     <h1 class="text-3xl font-bold text-center text-indigo-900 mb-6">Voter Search Portal</h1>
 
     <div id="statusMsg" class="bg-blue-100 text-blue-800 p-3 rounded mb-5 text-center font-semibold">
@@ -33,7 +33,7 @@
 
         <div>
           <label class="block text-sm font-semibold mb-1">House Number</label>
-          <input id="hno" type="text" placeholder="e.g. 1-23" class="w-full border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" />
+          <input id="hno" type="text" placeholder="e.g. 1-2" class="w-full border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" />
         </div>
       </div>
 
@@ -47,17 +47,21 @@
       </div>
     </div>
 
-    <div id="count" class="mb-3 font-semibold text-gray-700"></div>
+    <div id="count" class="mb-3 font-semibold text-gray-700 text-lg"></div>
 
     <div class="bg-white rounded-xl shadow overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
-          <thead class="bg-indigo-900 text-white">
+          <thead class="bg-indigo-900 text-white sticky top-0">
             <tr>
-              <th class="p-3 text-left">Part No</th>
-              <th class="p-3 text-left">House No</th>
+              <th class="p-3 text-left">Part</th>
+              <th class="p-3 text-left">SL No</th>
               <th class="p-3 text-left">Name</th>
-              <th class="p-3 text-left">Relation Name</th>
+              <th class="p-3 text-left">Relation</th>
+              <th class="p-3 text-left">Age</th>
+              <th class="p-3 text-left">Sex</th>
+              <th class="p-3 text-left">House No</th>
+              <th class="p-3 text-left">EPIC</th>
             </tr>
           </thead>
           <tbody id="results" class="divide-y divide-gray-200"></tbody>
@@ -65,11 +69,21 @@
       </div>
       <div id="empty" class="hidden p-8 text-center text-gray-500">No results found</div>
     </div>
+
+    <!-- Pagination -->
+    <div id="pagination" class="mt-5 flex justify-center gap-2 flex-wrap hidden">
+      <button onclick="prevPage()" class="bg-indigo-600 text-white px-4 py-2 rounded">← Previous</button>
+      <span id="pageInfo" class="px-4 py-2 font-semibold"></span>
+      <button onclick="nextPage()" class="bg-indigo-600 text-white px-4 py-2 rounded">Next →</button>
+    </div>
   </div>
 
   <script>
     let rawData = [];
     let indexedData = [];
+    let filteredResults = [];
+    let currentPage = 1;
+    const resultsPerPage = 50;
 
     function normalizeText(value) {
       return String(value ?? "")
@@ -136,7 +150,7 @@
       const partQuery = normalizeNumberLike(document.getElementById("part").value);
       const hnoQuery = normalizeNumberLike(document.getElementById("hno").value);
 
-      const filtered = indexedData.filter(item => {
+      filteredResults = indexedData.filter(item => {
         const matchName = !nameQuery || matchesAllWords(item.name, nameQuery);
         const matchRelation = !relationQuery || matchesAllWords(item.relation, relationQuery);
         const matchPart = !partQuery || item.part === partQuery;
@@ -145,36 +159,76 @@
         return matchName && matchRelation && matchPart && matchHno;
       });
 
-      displayResults(filtered);
+      currentPage = 1;
+      displayResults();
     }
 
-    function displayResults(results) {
+    function displayResults() {
       const tbody = document.getElementById("results");
       const empty = document.getElementById("empty");
       const count = document.getElementById("count");
+      const pagination = document.getElementById("pagination");
 
       tbody.innerHTML = "";
 
-      count.innerText = `Found ${results.length} result${results.length === 1 ? "" : "s"}${results.length > 300 ? " (showing first 300)" : ""}`;
+      const totalResults = filteredResults.length;
+      count.innerText = `Found ${totalResults} result${totalResults === 1 ? "" : "s"}`;
 
-      if (results.length === 0) {
+      if (totalResults === 0) {
         empty.classList.remove("hidden");
+        pagination.classList.add("hidden");
         return;
       }
 
       empty.classList.add("hidden");
 
-      results.slice(0, 300).forEach(item => {
+      // Calculate pagination
+      const totalPages = Math.ceil(totalResults / resultsPerPage);
+      const startIdx = (currentPage - 1) * resultsPerPage;
+      const endIdx = startIdx + resultsPerPage;
+      const pageResults = filteredResults.slice(startIdx, endIdx);
+
+      // Display rows
+      pageResults.forEach(item => {
         const row = item.original;
         tbody.innerHTML += `
           <tr class="hover:bg-gray-50">
             <td class="p-3 font-semibold text-indigo-700">${row.part_no ?? "-"}</td>
-            <td class="p-3">${row.New_Hno ?? "-"}</td>
-            <td class="p-3 font-semibold">${row.NAME_ENG ?? "-"}</td>
-            <td class="p-3">${row.RELATION_NAME ?? "-"}</td>
+            <td class="p-3 text-sm text-gray-600">${row.slnoinpart ?? "-"}</td>
+            <td class="p-3 font-semibold text-gray-900">${row.NAME_ENG ?? "-"}</td>
+            <td class="p-3 text-gray-700">${row.RELATION_NAME ?? "-"}</td>
+            <td class="p-3 text-center">${row.age ?? "-"}</td>
+            <td class="p-3 text-center font-bold">${row.sex ?? "-"}</td>
+            <td class="p-3 font-mono text-sm">${row.New_Hno ?? "-"}</td>
+            <td class="p-3 font-mono text-xs text-indigo-600">${row.EPIC ?? "-"}</td>
           </tr>
         `;
       });
+
+      // Show pagination if needed
+      if (totalPages > 1) {
+        pagination.classList.remove("hidden");
+        document.getElementById("pageInfo").innerText = `Page ${currentPage} of ${totalPages}`;
+      } else {
+        pagination.classList.add("hidden");
+      }
+    }
+
+    function nextPage() {
+      const totalPages = Math.ceil(filteredResults.length / resultsPerPage);
+      if (currentPage < totalPages) {
+        currentPage++;
+        displayResults();
+        window.scrollTo(0, 0);
+      }
+    }
+
+    function prevPage() {
+      if (currentPage > 1) {
+        currentPage--;
+        displayResults();
+        window.scrollTo(0, 0);
+      }
     }
 
     function clearSearch() {
@@ -185,6 +239,9 @@
       document.getElementById("results").innerHTML = "";
       document.getElementById("empty").classList.add("hidden");
       document.getElementById("count").innerText = "";
+      document.getElementById("pagination").classList.add("hidden");
+      filteredResults = [];
+      currentPage = 1;
     }
 
     document.addEventListener("keydown", function (e) {
