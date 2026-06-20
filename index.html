@@ -1,47 +1,48 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Voter Search Portal</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 text-gray-900">
-  <div class="max-w-full mx-auto px-4 py-8">
+<body class="bg-gray-100 p-4">
+  <div class="max-w-full mx-auto">
     <h1 class="text-3xl font-bold text-center text-indigo-900 mb-6">Voter Search Portal</h1>
 
-    <div id="statusMsg" class="bg-blue-100 text-blue-800 p-3 rounded mb-5 text-center font-semibold">
+    <div id="status" class="bg-blue-100 text-blue-800 p-3 rounded mb-4 text-center font-semibold">
       Loading voter data...
     </div>
 
-    <div class="bg-white rounded-xl shadow p-5 mb-5">
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <!-- Search Boxes -->
+    <div class="bg-white p-5 rounded-xl shadow mb-5">
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
         <div>
-          <label class="block text-sm font-semibold mb-1">Voter Name</label>
-          <input id="name" type="text" placeholder="e.g. Javaji Obulapati" class="w-full border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" />
+          <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Voter Name</label>
+          <input id="s_name" type="text" placeholder="Enter name" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none">
         </div>
-
         <div>
-          <label class="block text-sm font-semibold mb-1">Relation Name</label>
-          <input id="relation" type="text" placeholder="e.g. Father/Spouse name" class="w-full border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" />
+          <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Relation Name</label>
+          <input id="s_relation" type="text" placeholder="Enter relation" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none">
         </div>
-
         <div>
-          <label class="block text-sm font-semibold mb-1">Part Number</label>
-          <input id="part" type="text" placeholder="e.g. 16" class="w-full border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" />
+          <label class="block text-xs font-bold uppercase text-gray-500 mb-1">House Number</label>
+          <input id="s_hno" type="text" placeholder="e.g. 1-23" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none">
         </div>
-
         <div>
-          <label class="block text-sm font-semibold mb-1">House Number</label>
-          <input id="hno" type="text" placeholder="e.g. 1-2" class="w-full border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" />
+          <label class="block text-xs font-bold uppercase text-gray-500 mb-1">EPIC Number</label>
+          <input id="s_epic" type="text" placeholder="e.g. ABC123" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Polling Station (Part No)</label>
+          <input id="s_part" type="text" placeholder="e.g. 16" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none">
         </div>
       </div>
-
-      <div class="flex flex-col md:flex-row gap-3 mt-5">
-        <button id="searchBtn" onclick="searchData()" disabled class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-lg disabled:bg-gray-400">
+      <div class="flex gap-3 mt-4">
+        <button id="searchBtn" onclick="doSearch()" disabled class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 py-3 rounded-lg disabled:bg-gray-400">
           Search
         </button>
-        <button onclick="clearSearch()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-6 py-3 rounded-lg">
+        <button onclick="clearAll()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-6 py-3 rounded-lg">
           Clear
         </button>
       </div>
@@ -49,206 +50,162 @@
 
     <div id="count" class="mb-3 font-semibold text-gray-700 text-lg"></div>
 
+    <!-- Results Table -->
     <div class="bg-white rounded-xl shadow overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead class="bg-indigo-900 text-white sticky top-0">
             <tr>
-              <th class="p-3 text-left">Part</th>
+              <th class="p-3 text-left">Part No</th>
               <th class="p-3 text-left">SL No</th>
-              <th class="p-3 text-left">Name</th>
-              <th class="p-3 text-left">Relation</th>
+              <th class="p-3 text-left">Voter Name</th>
+              <th class="p-3 text-left">Relation Name</th>
               <th class="p-3 text-left">Age</th>
               <th class="p-3 text-left">Sex</th>
               <th class="p-3 text-left">House No</th>
               <th class="p-3 text-left">EPIC</th>
             </tr>
           </thead>
-          <tbody id="results" class="divide-y divide-gray-200"></tbody>
+          <tbody id="tbody" class="divide-y divide-gray-200"></tbody>
         </table>
       </div>
-      <div id="empty" class="hidden p-8 text-center text-gray-500">No results found</div>
+      <div id="empty" class="hidden p-8 text-center text-gray-500">No results found.</div>
     </div>
 
     <!-- Pagination -->
-    <div id="pagination" class="mt-5 flex justify-center gap-2 flex-wrap hidden">
-      <button onclick="prevPage()" class="bg-indigo-600 text-white px-4 py-2 rounded">← Previous</button>
-      <span id="pageInfo" class="px-4 py-2 font-semibold"></span>
-      <button onclick="nextPage()" class="bg-indigo-600 text-white px-4 py-2 rounded">Next →</button>
+    <div id="pageNav" class="mt-5 flex justify-center items-center gap-3 hidden">
+      <button onclick="prevPage()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2 rounded-lg">← Previous</button>
+      <span id="pageInfo" class="font-semibold text-gray-700"></span>
+      <button onclick="nextPage()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2 rounded-lg">Next →</button>
     </div>
   </div>
 
   <script>
-    let rawData = [];
-    let indexedData = [];
-    let filteredResults = [];
+    let allData = [];
+    let searchResults = [];
     let currentPage = 1;
-    const resultsPerPage = 50;
+    const PER_PAGE = 50;
 
-    function normalizeText(value) {
-      return String(value ?? "")
-        .toUpperCase()
-        .normalize("NFKD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^A-Z0-9]+/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
+    function norm(v) {
+      return String(v ?? '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
     }
 
-    function normalizeNumberLike(value) {
-      return String(value ?? "")
-        .toUpperCase()
-        .replace(/\s+/g, "")
-        .trim();
+    function rawNorm(v) {
+      return String(v ?? '').toUpperCase().replace(/\s+/g, '').trim();
     }
 
     async function loadData() {
       try {
-        const response = await fetch("./voter_data.json", { cache: "no-store" });
-        if (!response.ok) {
-          throw new Error("Could not load voter_data.json");
-        }
-
-        rawData = await response.json();
-
-        document.getElementById("statusMsg").className =
-          "bg-yellow-100 text-yellow-800 p-3 rounded mb-5 text-center font-semibold";
-        document.getElementById("statusMsg").innerText =
-          "Data loaded. Preparing search index...";
-
-        indexedData = rawData.map(item => ({
-          original: item,
-          name: normalizeText(item.NAME_ENG),
-          relation: normalizeText(item.RELATION_NAME),
-          part: normalizeNumberLike(item.part_no),
-          hno: normalizeNumberLike(item.New_Hno)
-        }));
-
-        document.getElementById("statusMsg").className =
-          "bg-green-100 text-green-800 p-3 rounded mb-5 text-center font-semibold";
-        document.getElementById("statusMsg").innerText =
-          `Data ready! (${rawData.length} records loaded)`;
-
-        document.getElementById("searchBtn").disabled = false;
-      } catch (error) {
-        document.getElementById("statusMsg").className =
-          "bg-red-100 text-red-800 p-3 rounded mb-5 text-center font-semibold";
-        document.getElementById("statusMsg").innerText =
-          "Error loading data: " + error.message;
+        const r = await fetch('./voter_data.json', { cache: 'no-store' });
+        if (!r.ok) throw new Error('File not found');
+        allData = await r.json();
+        document.getElementById('status').className = 'bg-green-100 text-green-800 p-3 rounded mb-4 text-center font-semibold';
+        document.getElementById('status').innerText = `✅ ${allData.length.toLocaleString()} records loaded successfully.`;
+        document.getElementById('searchBtn').disabled = false;
+      } catch (e) {
+        document.getElementById('status').className = 'bg-red-100 text-red-800 p-3 rounded mb-4 text-center font-semibold';
+        document.getElementById('status').innerText = '❌ Error: ' + e.message;
       }
     }
 
-    function matchesAllWords(source, query) {
-      if (!query) return true;
-      const words = query.split(" ").filter(Boolean);
-      return words.every(word => source.includes(word));
-    }
+    function doSearch() {
+      const qName = norm(document.getElementById('s_name').value);
+      const qRel = norm(document.getElementById('s_relation').value);
+      const qHno = rawNorm(document.getElementById('s_hno').value);
+      const qEpic = rawNorm(document.getElementById('s_epic').value);
+      const qPart = String(document.getElementById('s_part').value).trim();
 
-    function searchData() {
-      const nameQuery = normalizeText(document.getElementById("name").value);
-      const relationQuery = normalizeText(document.getElementById("relation").value);
-      const partQuery = normalizeNumberLike(document.getElementById("part").value);
-      const hnoQuery = normalizeNumberLike(document.getElementById("hno").value);
-
-      filteredResults = indexedData.filter(item => {
-        const matchName = !nameQuery || matchesAllWords(item.name, nameQuery);
-        const matchRelation = !relationQuery || matchesAllWords(item.relation, relationQuery);
-        const matchPart = !partQuery || item.part === partQuery;
-        const matchHno = !hnoQuery || item.hno.includes(hnoQuery);
-
-        return matchName && matchRelation && matchPart && matchHno;
-      });
-
-      currentPage = 1;
-      displayResults();
-    }
-
-    function displayResults() {
-      const tbody = document.getElementById("results");
-      const empty = document.getElementById("empty");
-      const count = document.getElementById("count");
-      const pagination = document.getElementById("pagination");
-
-      tbody.innerHTML = "";
-
-      const totalResults = filteredResults.length;
-      count.innerText = `Found ${totalResults} result${totalResults === 1 ? "" : "s"}`;
-
-      if (totalResults === 0) {
-        empty.classList.remove("hidden");
-        pagination.classList.add("hidden");
+      if (!qName && !qRel && !qHno && !qEpic && !qPart) {
+        alert('Please enter at least one search field.');
         return;
       }
 
-      empty.classList.add("hidden");
+      searchResults = allData.filter(d => {
+        const name = norm(d.NAME_ENG);
+        const rel = norm(d.RELATION_NAME);
+        const hno = rawNorm(d.New_Hno);
+        const epic = rawNorm(d.EPIC);
+        const part = String(d.part_no ?? '').trim();
 
-      // Calculate pagination
-      const totalPages = Math.ceil(totalResults / resultsPerPage);
-      const startIdx = (currentPage - 1) * resultsPerPage;
-      const endIdx = startIdx + resultsPerPage;
-      const pageResults = filteredResults.slice(startIdx, endIdx);
+        const mName = !qName || name.includes(qName);
+        const mRel = !qRel || rel.includes(qRel);
+        const mHno = !qHno || hno.includes(qHno);
+        const mEpic = !qEpic || epic.includes(qEpic);
+        const mPart = !qPart || part === qPart;
 
-      // Display rows
-      pageResults.forEach(item => {
-        const row = item.original;
-        tbody.innerHTML += `
-          <tr class="hover:bg-gray-50">
-            <td class="p-3 font-semibold text-indigo-700">${row.part_no ?? "-"}</td>
-            <td class="p-3 text-sm text-gray-600">${row.slnoinpart ?? "-"}</td>
-            <td class="p-3 font-semibold text-gray-900">${row.NAME_ENG ?? "-"}</td>
-            <td class="p-3 text-gray-700">${row.RELATION_NAME ?? "-"}</td>
-            <td class="p-3 text-center">${row.age ?? "-"}</td>
-            <td class="p-3 text-center font-bold">${row.sex ?? "-"}</td>
-            <td class="p-3 font-mono text-sm">${row.New_Hno ?? "-"}</td>
-            <td class="p-3 font-mono text-xs text-indigo-600">${row.EPIC ?? "-"}</td>
-          </tr>
-        `;
+        return mName && mRel && mHno && mEpic && mPart;
       });
 
-      // Show pagination if needed
+      currentPage = 1;
+      render();
+    }
+
+    function render() {
+      const tbody = document.getElementById('tbody');
+      const empty = document.getElementById('empty');
+      const count = document.getElementById('count');
+      const nav = document.getElementById('pageNav');
+
+      tbody.innerHTML = '';
+      count.innerText = `Found ${searchResults.length} result${searchResults.length === 1 ? '' : 's'}.`;
+
+      if (searchResults.length === 0) {
+        empty.classList.remove('hidden');
+        nav.classList.add('hidden');
+        return;
+      }
+
+      empty.classList.add('hidden');
+
+      const totalPages = Math.ceil(searchResults.length / PER_PAGE);
+      const start = (currentPage - 1) * PER_PAGE;
+      const end = start + PER_PAGE;
+      const page = searchResults.slice(start, end);
+
+      page.forEach(d => {
+        const row = `
+          <tr class="hover:bg-gray-50 border-b">
+            <td class="p-3 font-bold text-indigo-700">${d.part_no ?? '-'}</td>
+            <td class="p-3">${d.slnoinpart ?? '-'}</td>
+            <td class="p-3 font-bold text-gray-900">${d.NAME_ENG ?? '-'}</td>
+            <td class="p-3">${d.RELATION_NAME ?? '-'}</td>
+            <td class="p-3 text-center">${d.age ?? '-'}</td>
+            <td class="p-3 text-center font-bold">${d.sex ?? '-'}</td>
+            <td class="p-3 font-mono">${d.New_Hno ?? '-'}</td>
+            <td class="p-3 font-mono text-xs text-indigo-600">${d.EPIC ?? '-'}</td>
+          </tr>
+        `;
+        tbody.innerHTML += row;
+      });
+
       if (totalPages > 1) {
-        pagination.classList.remove("hidden");
-        document.getElementById("pageInfo").innerText = `Page ${currentPage} of ${totalPages}`;
+        nav.classList.remove('hidden');
+        document.getElementById('pageInfo').innerText = `Page ${currentPage} of ${totalPages}`;
       } else {
-        pagination.classList.add("hidden");
+        nav.classList.add('hidden');
       }
     }
 
     function nextPage() {
-      const totalPages = Math.ceil(filteredResults.length / resultsPerPage);
-      if (currentPage < totalPages) {
-        currentPage++;
-        displayResults();
-        window.scrollTo(0, 0);
-      }
+      const t = Math.ceil(searchResults.length / PER_PAGE);
+      if (currentPage < t) { currentPage++; render(); window.scrollTo(0, 0); }
     }
 
     function prevPage() {
-      if (currentPage > 1) {
-        currentPage--;
-        displayResults();
-        window.scrollTo(0, 0);
-      }
+      if (currentPage > 1) { currentPage--; render(); window.scrollTo(0, 0); }
     }
 
-    function clearSearch() {
-      document.getElementById("name").value = "";
-      document.getElementById("relation").value = "";
-      document.getElementById("part").value = "";
-      document.getElementById("hno").value = "";
-      document.getElementById("results").innerHTML = "";
-      document.getElementById("empty").classList.add("hidden");
-      document.getElementById("count").innerText = "";
-      document.getElementById("pagination").classList.add("hidden");
-      filteredResults = [];
+    function clearAll() {
+      ['s_name','s_relation','s_hno','s_epic','s_part'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('tbody').innerHTML = '';
+      document.getElementById('empty').classList.add('hidden');
+      document.getElementById('count').innerText = '';
+      document.getElementById('pageNav').classList.add('hidden');
+      searchResults = [];
       currentPage = 1;
     }
 
-    document.addEventListener("keydown", function (e) {
-      if (e.key === "Enter") {
-        searchData();
-      }
-    });
+    document.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
 
     loadData();
   </script>
