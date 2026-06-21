@@ -91,7 +91,7 @@
               <th class="p-3 text-left">Voter Name</th>
               <th class="p-3 text-left">Relation Name</th>
               <th class="p-3 text-left" id="col_age">Age</th>
-              <th class="p-3 text-left">Sex</th>
+              <th class="p-3 text-left" id="col_sex">Sex</th>
               <th class="p-3 text-left" id="col_hno">House No</th>
               <th class="p-3 text-left" id="col_epic">EPIC</th>
             </tr>
@@ -131,14 +131,16 @@
         label: 'Anantapur',
         hasHouseNo: true,
         hasEPIC: true,
-        hasAge: true
+        hasAge: true,
+        hasSex: true
       },
       dharmavaram: {
         file: './dharmavaram_data.json',
         label: 'Dharmavaram',
         hasHouseNo: false,
         hasEPIC: false,
-        hasAge: false
+        hasAge: false,
+        hasSex: false
       }
     };
 
@@ -195,6 +197,14 @@
         colAge.style.display = 'table-cell';
       } else {
         colAge.style.display = 'none';
+      }
+
+      // Show/hide Sex column
+      const colSex = document.getElementById('col_sex');
+      if (config.hasSex) {
+        colSex.style.display = 'table-cell';
+      } else {
+        colSex.style.display = 'none';
       }
     }
 
@@ -292,6 +302,15 @@
 
       page.forEach(d => {
         let ageCell = `<td class="p-3 text-center" style="display: ${config.hasAge ? 'table-cell' : 'none'};">${d['age'] ?? '-'}</td>`;
+        
+        // For Dharmavaram, show Relation Name instead of Sex
+        let sexCell;
+        if (config.hasSex) {
+          sexCell = `<td class="p-3 text-center font-bold">${d['sex'] ?? '-'}</td>`;
+        } else {
+          sexCell = `<td class="p-3">${d['RELATION NAME'] ?? '-'}</td>`;
+        }
+        
         let hnoCell = `<td class="p-3 font-mono" style="display: ${config.hasHouseNo ? 'table-cell' : 'none'};">${d['New_Hno'] ?? '-'}</td>`;
         let epicCell = `<td class="p-3 font-mono text-xs text-indigo-600" style="display: ${config.hasEPIC ? 'table-cell' : 'none'};">${d['EPIC'] ?? '-'}</td>`;
 
@@ -302,7 +321,7 @@
             <td class="p-3 font-bold text-gray-900">${d['NAME_ENG'] ?? '-'}</td>
             <td class="p-3">${d['RELATION NAME'] ?? '-'}</td>
             ${ageCell}
-            <td class="p-3 text-center font-bold">${d['sex'] ?? '-'}</td>
+            ${sexCell}
             ${hnoCell}
             ${epicCell}
           </tr>
