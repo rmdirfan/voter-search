@@ -13,19 +13,13 @@
 
     <!-- Constituency Selector -->
     <div class="bg-white p-4 rounded-xl shadow mb-4">
-      <label class="block text-xs font-bold uppercase text-gray-500 mb-2">
-        Select Constituency
-      </label>
+      <label class="block text-xs font-bold uppercase text-gray-500 mb-2">Select Constituency</label>
       <div class="flex gap-3 flex-wrap">
-        <button
-          id="btn_anantapur"
-          onclick="switchConstituency('anantapur')"
+        <button id="btn_anantapur" onclick="switchConstituency('anantapur')"
           class="px-6 py-2 rounded-full font-bold border-2 border-indigo-600 bg-indigo-600 text-white transition-all">
           Anantapur
         </button>
-        <button
-          id="btn_dharmavaram"
-          onclick="switchConstituency('dharmavaram')"
+        <button id="btn_dharmavaram" onclick="switchConstituency('dharmavaram')"
           class="px-6 py-2 rounded-full font-bold border-2 border-indigo-600 text-indigo-600 bg-white transition-all">
           Dharmavaram
         </button>
@@ -90,6 +84,7 @@
               <th class="p-3 text-left">SL No</th>
               <th class="p-3 text-left">Voter Name</th>
               <th class="p-3 text-left">Relation Name</th>
+              <th class="p-3 text-left" id="col_rlty">Relation Type</th>
               <th class="p-3 text-left" id="col_age">Age</th>
               <th class="p-3 text-left" id="col_sex">Sex</th>
               <th class="p-3 text-left" id="col_hno">House No</th>
@@ -124,7 +119,7 @@
     let activeConstituency = 'anantapur';
     const PER_PAGE = 50;
 
-    // Define which fields exist in each constituency
+    // ✅ Field config per constituency
     const constituencyConfig = {
       anantapur: {
         file: './anantapur_data.json',
@@ -132,15 +127,17 @@
         hasHouseNo: true,
         hasEPIC: true,
         hasAge: true,
-        hasSex: true
+        hasSex: true,
+        hasRLTY: false       // RLTY not in Anantapur
       },
       dharmavaram: {
         file: './dharmavaram_data.json',
         label: 'Dharmavaram',
         hasHouseNo: false,
-        hasEPIC: false,
+        hasEPIC: true,       // ✅ EPIC IS present in Dharmavaram
         hasAge: false,
-        hasSex: false
+        hasSex: false,       // ❌ Sex is empty — hidden
+        hasRLTY: true        // ✅ RLTY (Relation Type) IS present
       }
     };
 
@@ -157,55 +154,38 @@
       const classes = {
         blue: 'bg-blue-100 text-blue-800',
         green: 'bg-green-100 text-green-800',
-        red: 'bg-red-100 text-red-800',
-        yellow: 'bg-yellow-100 text-yellow-800'
+        red: 'bg-red-100 text-red-800'
       };
       el.className = `${classes[type]} p-3 rounded mb-4 text-center font-semibold`;
       el.innerText = msg;
     }
 
-    function updateSearchFieldsVisibility() {
+    function updateFieldVisibility() {
       const config = constituencyConfig[activeConstituency];
-      
-      // Show/hide House Number field
-      const fieldHno = document.getElementById('field_hno');
-      const colHno = document.getElementById('col_hno');
-      if (config.hasHouseNo) {
-        fieldHno.style.display = 'block';
-        colHno.style.display = 'table-cell';
-      } else {
-        fieldHno.style.display = 'none';
-        colHno.style.display = 'none';
-        document.getElementById('s_hno').value = '';
-      }
 
-      // Show/hide EPIC field
-      const fieldEpic = document.getElementById('field_epic');
-      const colEpic = document.getElementById('col_epic');
-      if (config.hasEPIC) {
-        fieldEpic.style.display = 'block';
-        colEpic.style.display = 'table-cell';
-      } else {
-        fieldEpic.style.display = 'none';
-        colEpic.style.display = 'none';
-        document.getElementById('s_epic').value = '';
-      }
+      // House Number
+      const show = (id, visible) => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = visible ? '' : 'none';
+      };
 
-      // Show/hide Age column
-      const colAge = document.getElementById('col_age');
-      if (config.hasAge) {
-        colAge.style.display = 'table-cell';
-      } else {
-        colAge.style.display = 'none';
-      }
+      show('field_hno', config.hasHouseNo);
+      show('col_hno', config.hasHouseNo);
+      if (!config.hasHouseNo) document.getElementById('s_hno').value = '';
 
-      // Show/hide Sex column
-      const colSex = document.getElementById('col_sex');
-      if (config.hasSex) {
-        colSex.style.display = 'table-cell';
-      } else {
-        colSex.style.display = 'none';
-      }
+      // EPIC search field & column
+      show('field_epic', config.hasEPIC);
+      show('col_epic', config.hasEPIC);
+      if (!config.hasEPIC) document.getElementById('s_epic').value = '';
+
+      // Age column
+      show('col_age', config.hasAge);
+
+      // Sex column
+      show('col_sex', config.hasSex);
+
+      // Relation Type (RLTY) column
+      show('col_rlty', config.hasRLTY);
     }
 
     async function loadData(constituency) {
@@ -221,7 +201,7 @@
         allData = await r.json();
         setStatus('green', `✅ ${config.label}: ${allData.length.toLocaleString()} records loaded.`);
         document.getElementById('searchBtn').disabled = false;
-        updateSearchFieldsVisibility();
+        updateFieldVisibility();
       } catch (e) {
         setStatus('red', '❌ Error: ' + e.message);
       }
@@ -231,7 +211,6 @@
       if (name === activeConstituency) return;
       activeConstituency = name;
 
-      // Update button styles
       Object.keys(constituencyConfig).forEach(key => {
         const btn = document.getElementById(`btn_${key}`);
         if (key === name) {
@@ -246,11 +225,11 @@
 
     function doSearch() {
       const config = constituencyConfig[activeConstituency];
-      const qName = norm(document.getElementById('s_name').value);
-      const qRel = norm(document.getElementById('s_relation').value);
-      const qHno = config.hasHouseNo ? rawNorm(document.getElementById('s_hno').value) : '';
-      const qEpic = config.hasEPIC ? rawNorm(document.getElementById('s_epic').value) : '';
-      const qPart = String(document.getElementById('s_part').value).trim();
+      const qName  = norm(document.getElementById('s_name').value);
+      const qRel   = norm(document.getElementById('s_relation').value);
+      const qHno   = config.hasHouseNo ? rawNorm(document.getElementById('s_hno').value) : '';
+      const qEpic  = config.hasEPIC    ? rawNorm(document.getElementById('s_epic').value) : '';
+      const qPart  = String(document.getElementById('s_part').value).trim();
 
       if (!qName && !qRel && !qHno && !qEpic && !qPart) {
         alert('Please enter at least one search field.');
@@ -258,19 +237,19 @@
       }
 
       searchResults = allData.filter(d => {
-        const name = norm(d['NAME_ENG']);
-        const rel = norm(d['RELATION NAME']);
-        const hno = config.hasHouseNo ? rawNorm(d['New_Hno']) : '';
-        const epic = config.hasEPIC ? rawNorm(d['EPIC']) : '';
-        const part = String(d['part_no'] ?? '').trim();
+        const name  = norm(d['NAME_ENG']);
+        const rel   = norm(d['RELATION NAME']);
+        const hno   = config.hasHouseNo ? rawNorm(d['New_Hno']) : '';
+        const epic  = config.hasEPIC    ? rawNorm(d['EPIC'])    : '';
+        const part  = String(d['part_no'] ?? '').trim();
 
-        const mName = !qName || name.includes(qName);
-        const mRel = !qRel || rel.includes(qRel);
-        const mHno = !qHno || hno.includes(qHno);
-        const mEpic = !qEpic || epic.includes(qEpic);
-        const mPart = !qPart || part === qPart;
-
-        return mName && mRel && mHno && mEpic && mPart;
+        return (
+          (!qName || name.includes(qName))  &&
+          (!qRel  || rel.includes(qRel))    &&
+          (!qHno  || hno.includes(qHno))    &&
+          (!qEpic || epic.includes(qEpic))  &&
+          (!qPart || part === qPart)
+        );
       });
 
       currentPage = 1;
@@ -279,10 +258,10 @@
 
     function render() {
       const config = constituencyConfig[activeConstituency];
-      const tbody = document.getElementById('tbody');
-      const empty = document.getElementById('empty');
-      const count = document.getElementById('count');
-      const nav = document.getElementById('pageNav');
+      const tbody  = document.getElementById('tbody');
+      const empty  = document.getElementById('empty');
+      const count  = document.getElementById('count');
+      const nav    = document.getElementById('pageNav');
 
       tbody.innerHTML = '';
       count.innerText = `Found ${searchResults.length} result${searchResults.length === 1 ? '' : 's'}.`;
@@ -297,33 +276,22 @@
 
       const totalPages = Math.ceil(searchResults.length / PER_PAGE);
       const start = (currentPage - 1) * PER_PAGE;
-      const end = start + PER_PAGE;
-      const page = searchResults.slice(start, end);
+      const page  = searchResults.slice(start, start + PER_PAGE);
+
+      const vis = (flag) => flag ? '' : 'display:none;';
 
       page.forEach(d => {
-        let ageCell = `<td class="p-3 text-center" style="display: ${config.hasAge ? 'table-cell' : 'none'};">${d['age'] ?? '-'}</td>`;
-        
-        // For Dharmavaram, show Relation Name instead of Sex
-        let sexCell;
-        if (config.hasSex) {
-          sexCell = `<td class="p-3 text-center font-bold">${d['sex'] ?? '-'}</td>`;
-        } else {
-          sexCell = `<td class="p-3">${d['RELATION NAME'] ?? '-'}</td>`;
-        }
-        
-        let hnoCell = `<td class="p-3 font-mono" style="display: ${config.hasHouseNo ? 'table-cell' : 'none'};">${d['New_Hno'] ?? '-'}</td>`;
-        let epicCell = `<td class="p-3 font-mono text-xs text-indigo-600" style="display: ${config.hasEPIC ? 'table-cell' : 'none'};">${d['EPIC'] ?? '-'}</td>`;
-
         tbody.innerHTML += `
           <tr class="hover:bg-gray-50 border-b">
             <td class="p-3 font-bold text-indigo-700">${d['part_no'] ?? '-'}</td>
             <td class="p-3">${d['slnoinpart'] ?? '-'}</td>
             <td class="p-3 font-bold text-gray-900">${d['NAME_ENG'] ?? '-'}</td>
             <td class="p-3">${d['RELATION NAME'] ?? '-'}</td>
-            ${ageCell}
-            ${sexCell}
-            ${hnoCell}
-            ${epicCell}
+            <td class="p-3 text-indigo-800 font-medium" style="${vis(config.hasRLTY)}">${d['RLTY'] ?? '-'}</td>
+            <td class="p-3 text-center" style="${vis(config.hasAge)}">${d['age'] ?? '-'}</td>
+            <td class="p-3 text-center font-bold" style="${vis(config.hasSex)}">${d['sex'] ?? '-'}</td>
+            <td class="p-3 font-mono" style="${vis(config.hasHouseNo)}">${d['New_Hno'] ?? '-'}</td>
+            <td class="p-3 font-mono text-xs text-indigo-600" style="${vis(config.hasEPIC)}">${d['EPIC'] ?? '-'}</td>
           </tr>
         `;
       });
@@ -337,8 +305,9 @@
     }
 
     function nextPage() {
-      const t = Math.ceil(searchResults.length / PER_PAGE);
-      if (currentPage < t) { currentPage++; render(); window.scrollTo(0, 0); }
+      if (currentPage < Math.ceil(searchResults.length / PER_PAGE)) {
+        currentPage++; render(); window.scrollTo(0, 0);
+      }
     }
 
     function prevPage() {
@@ -359,8 +328,6 @@
     }
 
     document.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
-
-    // Load Anantapur by default
     loadData('anantapur');
   </script>
 </body>
