@@ -5,14 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Voter Search Portal</title>
   <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-9MXESXEBR1"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-9MXESXEBR1');
-</script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-9MXESXEBR1"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-9MXESXEBR1');
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 p-4">
@@ -128,7 +127,11 @@
     let activeConstituency = 'anantapur';
     const PER_PAGE = 50;
 
-    // ✅ SAME field config for BOTH constituencies
+    // ⚠️ IMPORTANT: Bump DATA_VERSION (e.g. 'v2', 'v3') whenever you upload new data files.
+    // This forces the cache to refresh automatically for all users.
+    const DATA_VERSION = 'v1';
+
+    // ✅ Same field config for BOTH constituencies
     const constituencyConfig = {
       anantapur: {
         file: './anantapur_data.json',
@@ -150,6 +153,163 @@
       }
     };
 
+    // ============================================================
+    // 🗄️ OPTIMIZATION 1: IndexedDB Cache (instant load on revisit)
+    // ============================================================
+    const DB_NAME  = 'VoterPortalDB';
+    const DB_VER   = 1;
+    const DB_STORE = 'voterData';
+    const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+    function openDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VER);
+        req.onupgradeneeded = e => e.target.result.createObjectStore(DB_STORE, { keyPath: 'key' });
+        req.onsuccess = e => resolve(e.target.result);
+        req.onerror = () => reject(new Error('IndexedDB unavailable'));
+      });
+    }
+
+    async function getFromCache(key) {
+      try {
+        const db = await openDB();
+        return new Promise(resolve => {
+          const req = db.transaction(DB_STORE, 'readonly')
+                        .objectStore(DB_STORE)
+                        .get(`${DATA_VERSION}_${key}`);
+          req.onsuccess = () => {
+            const r = req.result;
+            // Return cached data only if within TTL
+            resolve((r && (Date.now() - r.ts) < CACHE_TTL) ? r.data : null);
+          };
+          req.onerror = () => resolve(null);
+        });
+      } catch { return null; }
+    }
+
+    async function saveToCache(key, data) {
+      try {
+        const db = await openDB();
+        const tx = db.transaction(DB_STORE, 'readwrite');
+        tx.objectStore(DB_STORE).put({ key: `${DATA_VERSION}_${key}`, data, ts: Date.now() });
+      } catch { /* silently skip if storage unavailable */ }
+    }
+
+    // ============================================================
+    // ⚙️ OPTIMIZATION 2: Inline Web Worker (non-blocking JSON parse)
+    // ============================================================
+    function parseJSONAsync(text) {
+      return new Promise((resolve, reject) => {
+        const blob = new Blob([`
+          self.onmessage = function(e) {
+            try {
+              self.postMessage({ ok: true, data: JSON.parse(e.data) });
+            } catch(err) {
+              self.postMessage({ ok: false, msg: err.message });
+            }
+          };
+        `], { type: 'application/javascript' });
+        const url = URL.createObjectURL(blob);
+        const worker = new Worker(url);
+        worker.onmessage = e => {
+          URL.revokeObjectURL(url);
+          worker.terminate();
+          e.data.ok ? resolve(e.data.data) : reject(new Error(e.data.msg));
+        };
+        worker.onerror = err => {
+          URL.revokeObjectURL(url);
+          worker.terminate();
+          reject(err);
+        };
+        worker.postMessage(text);
+      });
+    }
+
+    // ============================================================
+    // 🔄 OPTIMIZATION 3: In-Memory Map + Background Preload
+    // ============================================================
+    const memoryCache = {}; // Keeps data in RAM after first load (instant switch)
+
+    async function preloadInBackground(constituency) {
+      if (memoryCache[constituency]) return; // already in memory
+      const config = constituencyConfig[constituency];
+      try {
+        // Try IndexedDB first
+        const cached = await getFromCache(constituency);
+        if (cached) { memoryCache[constituency] = cached; return; }
+        // Otherwise fetch silently
+        const r = await fetch(config.file);
+        if (!r.ok) return;
+        const text = await r.text();
+        const data = await parseJSONAsync(text);
+        memoryCache[constituency] = data;
+        await saveToCache(constituency, data);
+      } catch { /* silently fail — preload is best-effort */ }
+    }
+
+    // ============================================================
+    // LOAD DATA (uses all 3 optimizations)
+    // ============================================================
+    async function loadData(constituency) {
+      const config = constituencyConfig[constituency];
+      document.getElementById('searchBtn').disabled = true;
+      allData = [];
+      clearAll();
+
+      // Step 1: Check in-memory cache (instant — no I/O at all)
+      if (memoryCache[constituency]) {
+        allData = memoryCache[constituency];
+        setStatus('green', `✅ ${config.label}: ${allData.length.toLocaleString()} records ready.`);
+        document.getElementById('searchBtn').disabled = false;
+        updateFieldVisibility();
+        triggerBackgroundPreload(constituency);
+        return;
+      }
+
+      // Step 2: Check IndexedDB cache (fast — local storage, no network)
+      setStatus('blue', `⏳ Loading ${config.label}...`);
+      const cached = await getFromCache(constituency);
+      if (cached) {
+        allData = cached;
+        memoryCache[constituency] = cached; // promote to memory
+        setStatus('green', `✅ ${config.label}: ${allData.length.toLocaleString()} records loaded (cache).`);
+        document.getElementById('searchBtn').disabled = false;
+        updateFieldVisibility();
+        triggerBackgroundPreload(constituency);
+        return;
+      }
+
+      // Step 3: Fetch from network (first time only)
+      try {
+        setStatus('blue', `⬇️ Downloading ${config.label} data… (first time only, will cache after)`);
+        const r = await fetch(config.file);
+        if (!r.ok) throw new Error(`Could not load ${config.file}`);
+        const text = await r.text();
+
+        setStatus('blue', `⚙️ Processing ${config.label} data...`);
+        allData = await parseJSONAsync(text); // non-blocking parse via Web Worker
+
+        memoryCache[constituency] = allData;   // save to memory
+        await saveToCache(constituency, allData); // save to IndexedDB
+
+        setStatus('green', `✅ ${config.label}: ${allData.length.toLocaleString()} records loaded & cached.`);
+        document.getElementById('searchBtn').disabled = false;
+        updateFieldVisibility();
+        triggerBackgroundPreload(constituency);
+      } catch (e) {
+        setStatus('red', '❌ Error: ' + e.message);
+      }
+    }
+
+    function triggerBackgroundPreload(loadedConstituency) {
+      // After loading one constituency, silently preload the other
+      const other = loadedConstituency === 'anantapur' ? 'dharmavaram' : 'anantapur';
+      setTimeout(() => preloadInBackground(other), 2000);
+    }
+
+    // ============================================================
+    // UI FUNCTIONS (unchanged)
+    // ============================================================
     function norm(v) {
       return String(v ?? '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
     }
@@ -171,57 +331,30 @@
 
     function updateFieldVisibility() {
       const config = constituencyConfig[activeConstituency];
-
       const show = (id, visible) => {
         const el = document.getElementById(id);
         if (el) el.style.display = visible ? '' : 'none';
       };
-
       show('field_hno', config.hasHouseNo);
-      show('col_hno', config.hasHouseNo);
+      show('col_hno',   config.hasHouseNo);
       if (!config.hasHouseNo) document.getElementById('s_hno').value = '';
-
       show('field_epic', config.hasEPIC);
-      show('col_epic', config.hasEPIC);
+      show('col_epic',   config.hasEPIC);
       if (!config.hasEPIC) document.getElementById('s_epic').value = '';
-
-      show('col_age', config.hasAge);
-      show('col_sex', config.hasSex);
+      show('col_age',  config.hasAge);
+      show('col_sex',  config.hasSex);
       show('col_rlty', config.hasRLTY);
-    }
-
-    async function loadData(constituency) {
-      const config = constituencyConfig[constituency];
-      setStatus('blue', `Loading ${config.label} voter data...`);
-      document.getElementById('searchBtn').disabled = true;
-      allData = [];
-      clearAll();
-
-      try {
-        const r = await fetch(config.file, { cache: 'no-store' });
-        if (!r.ok) throw new Error(`Could not load ${config.file}`);
-        allData = await r.json();
-        setStatus('green', `✅ ${config.label}: ${allData.length.toLocaleString()} records loaded.`);
-        document.getElementById('searchBtn').disabled = false;
-        updateFieldVisibility();
-      } catch (e) {
-        setStatus('red', '❌ Error: ' + e.message);
-      }
     }
 
     function switchConstituency(name) {
       if (name === activeConstituency) return;
       activeConstituency = name;
-
       Object.keys(constituencyConfig).forEach(key => {
         const btn = document.getElementById(`btn_${key}`);
-        if (key === name) {
-          btn.className = 'px-6 py-2 rounded-full font-bold border-2 border-indigo-600 bg-indigo-600 text-white transition-all';
-        } else {
-          btn.className = 'px-6 py-2 rounded-full font-bold border-2 border-indigo-600 text-indigo-600 bg-white transition-all';
-        }
+        btn.className = key === name
+          ? 'px-6 py-2 rounded-full font-bold border-2 border-indigo-600 bg-indigo-600 text-white transition-all'
+          : 'px-6 py-2 rounded-full font-bold border-2 border-indigo-600 text-indigo-600 bg-white transition-all';
       });
-
       loadData(name);
     }
 
@@ -239,21 +372,19 @@
       }
 
       searchResults = allData.filter(d => {
-        const name  = norm(d['NAME_ENG']);
-        const rel   = norm(d['RELATION NAME']);
-        const hno   = config.hasHouseNo ? rawNorm(d['New_Hno']) : '';
-        const epic  = config.hasEPIC    ? rawNorm(d['EPIC'])    : '';
-        const part  = String(d['part_no'] ?? '').trim();
-
+        const name = norm(d['NAME_ENG']);
+        const rel  = norm(d['RELATION NAME']);
+        const hno  = config.hasHouseNo ? rawNorm(d['New_Hno']) : '';
+        const epic = config.hasEPIC    ? rawNorm(d['EPIC'])    : '';
+        const part = String(d['part_no'] ?? '').trim();
         return (
-          (!qName || name.includes(qName))  &&
-          (!qRel  || rel.includes(qRel))    &&
-          (!qHno  || hno.includes(qHno))    &&
-          (!qEpic || epic.includes(qEpic))  &&
+          (!qName || name.includes(qName)) &&
+          (!qRel  || rel.includes(qRel))   &&
+          (!qHno  || hno.includes(qHno))   &&
+          (!qEpic || epic.includes(qEpic)) &&
           (!qPart || part === qPart)
         );
       });
-
       currentPage = 1;
       render();
     }
@@ -273,14 +404,12 @@
         nav.classList.add('hidden');
         return;
       }
-
       empty.classList.add('hidden');
 
       const totalPages = Math.ceil(searchResults.length / PER_PAGE);
       const start = (currentPage - 1) * PER_PAGE;
       const page  = searchResults.slice(start, start + PER_PAGE);
-
-      const vis = (flag) => flag ? '' : 'display:none;';
+      const vis   = (flag) => flag ? '' : 'display:none;';
 
       page.forEach(d => {
         tbody.innerHTML += `
