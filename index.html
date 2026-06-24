@@ -128,7 +128,7 @@
     let activeConstituency = 'anantapur';
     const PER_PAGE = 50;
 
-    // ✅ Field config per constituency
+    // ✅ SAME field config for BOTH constituencies
     const constituencyConfig = {
       anantapur: {
         file: './anantapur_data.json',
@@ -137,16 +137,16 @@
         hasEPIC: true,
         hasAge: true,
         hasSex: true,
-        hasRLTY: false       // RLTY not in Anantapur
+        hasRLTY: true
       },
       dharmavaram: {
         file: './dharmavaram_data.json',
         label: 'Dharmavaram',
-        hasHouseNo: false,
-        hasEPIC: true,       // ✅ EPIC IS present in Dharmavaram
-        hasAge: false,
-        hasSex: false,       // ❌ Sex is empty — hidden
-        hasRLTY: true        // ✅ RLTY (Relation Type) IS present
+        hasHouseNo: true,
+        hasEPIC: true,
+        hasAge: true,
+        hasSex: true,
+        hasRLTY: true
       }
     };
 
@@ -172,7 +172,6 @@
     function updateFieldVisibility() {
       const config = constituencyConfig[activeConstituency];
 
-      // House Number
       const show = (id, visible) => {
         const el = document.getElementById(id);
         if (el) el.style.display = visible ? '' : 'none';
@@ -182,18 +181,12 @@
       show('col_hno', config.hasHouseNo);
       if (!config.hasHouseNo) document.getElementById('s_hno').value = '';
 
-      // EPIC search field & column
       show('field_epic', config.hasEPIC);
       show('col_epic', config.hasEPIC);
       if (!config.hasEPIC) document.getElementById('s_epic').value = '';
 
-      // Age column
       show('col_age', config.hasAge);
-
-      // Sex column
       show('col_sex', config.hasSex);
-
-      // Relation Type (RLTY) column
       show('col_rlty', config.hasRLTY);
     }
 
