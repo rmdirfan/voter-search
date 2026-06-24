@@ -17,21 +17,34 @@
 <body class="bg-gray-100 p-4">
   <div class="max-w-full mx-auto">
     <h1 class="text-3xl font-bold text-center text-indigo-900 mb-2">Voter Search Portal</h1>
-    <p class="text-center text-gray-500 mb-5 text-sm">Andhra Pradesh Electoral Data</p>
+    <p class="text-center text-gray-500 mb-5 text-sm">Andhra Pradesh - Hindupur Lok Sabha</p>
 
-    <!-- Constituency Selector -->
+    <!-- Constituency Selector (4 Constituencies) -->
     <div class="bg-white p-4 rounded-xl shadow mb-4">
       <label class="block text-xs font-bold uppercase text-gray-500 mb-2">Select Constituency</label>
-      <div class="flex gap-3 flex-wrap">
+      <div class="flex gap-2 flex-wrap">
         <button id="btn_anantapur" onclick="switchConstituency('anantapur')"
-          class="px-6 py-2 rounded-full font-bold border-2 border-indigo-600 bg-indigo-600 text-white transition-all">
+          class="px-4 py-2 rounded-full font-bold border-2 border-indigo-600 bg-indigo-600 text-white transition-all text-sm">
           Anantapur
         </button>
         <button id="btn_dharmavaram" onclick="switchConstituency('dharmavaram')"
-          class="px-6 py-2 rounded-full font-bold border-2 border-indigo-600 text-indigo-600 bg-white transition-all">
+          class="px-4 py-2 rounded-full font-bold border-2 border-indigo-600 text-indigo-600 bg-white transition-all text-sm">
           Dharmavaram
         </button>
+        <button id="btn_tadipatri" onclick="switchConstituency('tadipatri')"
+          class="px-4 py-2 rounded-full font-bold border-2 border-indigo-600 text-indigo-600 bg-white transition-all text-sm">
+          Tadipatri
+        </button>
+        <button id="btn_penukonda" onclick="switchConstituency('penukonda')"
+          class="px-4 py-2 rounded-full font-bold border-2 border-indigo-600 text-indigo-600 bg-white transition-all text-sm">
+          Penukonda
+        </button>
       </div>
+    </div>
+
+    <!-- Storage Info -->
+    <div id="storageInfo" class="bg-gray-50 p-3 rounded mb-4 text-xs text-gray-600 border border-gray-200">
+      💾 Cache info will appear here
     </div>
 
     <!-- Status Bar -->
@@ -76,6 +89,10 @@
         <button onclick="clearAll()"
           class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-6 py-3 rounded-lg">
           Clear
+        </button>
+        <button onclick="clearCache()"
+          class="bg-red-100 hover:bg-red-200 text-red-700 font-semibold px-4 py-3 rounded-lg text-xs">
+          🗑️ Clear Cache
         </button>
       </div>
     </div>
@@ -127,11 +144,10 @@
     let activeConstituency = 'anantapur';
     const PER_PAGE = 50;
 
-    // ⚠️ IMPORTANT: Bump DATA_VERSION (e.g. 'v2', 'v3') whenever you upload new data files.
-    // This forces the cache to refresh automatically for all users.
+    // ⚠️ Bump DATA_VERSION (v2, v3...) whenever you upload new JSON files
     const DATA_VERSION = 'v1';
 
-    // ✅ Same field config for BOTH constituencies
+    // ✅ 4 CONSTITUENCIES — Hindupur removed
     const constituencyConfig = {
       anantapur: {
         file: './anantapur_data.json',
@@ -150,16 +166,34 @@
         hasAge: true,
         hasSex: true,
         hasRLTY: true
+      },
+      tadipatri: {
+        file: './tadipatri_data.json',
+        label: 'Tadipatri',
+        hasHouseNo: true,
+        hasEPIC: true,
+        hasAge: true,
+        hasSex: true,
+        hasRLTY: true
+      },
+      penukonda: {
+        file: './penukonda_data.json',
+        label: 'Penukonda',
+        hasHouseNo: true,
+        hasEPIC: true,
+        hasAge: true,
+        hasSex: true,
+        hasRLTY: true
       }
     };
 
     // ============================================================
-    // 🗄️ OPTIMIZATION 1: IndexedDB Cache (instant load on revisit)
+    // 🗄️ IndexedDB Cache (7-day TTL)
     // ============================================================
     const DB_NAME  = 'VoterPortalDB';
     const DB_VER   = 1;
     const DB_STORE = 'voterData';
-    const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+    const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
 
     function openDB() {
       return new Promise((resolve, reject) => {
@@ -179,7 +213,6 @@
                         .get(`${DATA_VERSION}_${key}`);
           req.onsuccess = () => {
             const r = req.result;
-            // Return cached data only if within TTL
             resolve((r && (Date.now() - r.ts) < CACHE_TTL) ? r.data : null);
           };
           req.onerror = () => resolve(null);
@@ -192,11 +225,42 @@
         const db = await openDB();
         const tx = db.transaction(DB_STORE, 'readwrite');
         tx.objectStore(DB_STORE).put({ key: `${DATA_VERSION}_${key}`, data, ts: Date.now() });
-      } catch { /* silently skip if storage unavailable */ }
+      } catch { /* silently skip */ }
+    }
+
+    async function getCachedConstituencies() {
+      try {
+        const db = await openDB();
+        return new Promise(resolve => {
+          const req = db.transaction(DB_STORE, 'readonly')
+                        .objectStore(DB_STORE)
+                        .getAll();
+          req.onsuccess = () => {
+            const cached = req.result
+              .filter(r => r.key.startsWith(`${DATA_VERSION}_`))
+              .map(r => r.key.replace(`${DATA_VERSION}_`, ''));
+            resolve(cached);
+          };
+          req.onerror = () => resolve([]);
+        });
+      } catch { return []; }
+    }
+
+    async function clearAllCache() {
+      try {
+        const db = await openDB();
+        const tx = db.transaction(DB_STORE, 'readwrite');
+        tx.objectStore(DB_STORE).clear();
+        Object.keys(memoryCache).forEach(k => delete memoryCache[k]);
+        setStatus('green', '✅ Cache cleared! Reload any constituency fresh.');
+        updateStorageInfo();
+      } catch (e) {
+        setStatus('red', '❌ Error clearing cache: ' + e.message);
+      }
     }
 
     // ============================================================
-    // ⚙️ OPTIMIZATION 2: Inline Web Worker (non-blocking JSON parse)
+    // ⚙️ Web Worker — Non-blocking JSON parse
     // ============================================================
     function parseJSONAsync(text) {
       return new Promise((resolve, reject) => {
@@ -226,29 +290,30 @@
     }
 
     // ============================================================
-    // 🔄 OPTIMIZATION 3: In-Memory Map + Background Preload
+    // 🎯 In-Memory Cache
     // ============================================================
-    const memoryCache = {}; // Keeps data in RAM after first load (instant switch)
+    const memoryCache = {};
 
-    async function preloadInBackground(constituency) {
-      if (memoryCache[constituency]) return; // already in memory
-      const config = constituencyConfig[constituency];
-      try {
-        // Try IndexedDB first
-        const cached = await getFromCache(constituency);
-        if (cached) { memoryCache[constituency] = cached; return; }
-        // Otherwise fetch silently
-        const r = await fetch(config.file);
-        if (!r.ok) return;
-        const text = await r.text();
-        const data = await parseJSONAsync(text);
-        memoryCache[constituency] = data;
-        await saveToCache(constituency, data);
-      } catch { /* silently fail — preload is best-effort */ }
+    // ============================================================
+    // 📊 Storage Info Bar
+    // ============================================================
+    async function updateStorageInfo() {
+      const cached = await getCachedConstituencies();
+      let html = '💾 <strong>Cached:</strong> ';
+      if (cached.length === 0) {
+        html += '<span class="text-gray-400">Nothing cached yet</span>';
+      } else {
+        html += cached.map(c => {
+          const isCurrent = c === activeConstituency ? ' ✓' : '';
+          const label = constituencyConfig[c]?.label || c;
+          return `<span class="bg-indigo-100 text-indigo-700 px-2 py-1 rounded text-xs font-semibold">${label}${isCurrent}</span>`;
+        }).join(' ');
+      }
+      document.getElementById('storageInfo').innerHTML = html;
     }
 
     // ============================================================
-    // LOAD DATA (uses all 3 optimizations)
+    // 🚀 Load Data — Lazy (on demand only)
     // ============================================================
     async function loadData(constituency) {
       const config = constituencyConfig[constituency];
@@ -256,59 +321,53 @@
       allData = [];
       clearAll();
 
-      // Step 1: Check in-memory cache (instant — no I/O at all)
+      // Step 1: In-memory (instant — zero I/O)
       if (memoryCache[constituency]) {
         allData = memoryCache[constituency];
         setStatus('green', `✅ ${config.label}: ${allData.length.toLocaleString()} records ready.`);
         document.getElementById('searchBtn').disabled = false;
         updateFieldVisibility();
-        triggerBackgroundPreload(constituency);
+        updateStorageInfo();
         return;
       }
 
-      // Step 2: Check IndexedDB cache (fast — local storage, no network)
-      setStatus('blue', `⏳ Loading ${config.label}...`);
+      // Step 2: IndexedDB (fast — local, no network)
+      setStatus('blue', `⏳ Checking cache for ${config.label}...`);
       const cached = await getFromCache(constituency);
       if (cached) {
         allData = cached;
-        memoryCache[constituency] = cached; // promote to memory
-        setStatus('green', `✅ ${config.label}: ${allData.length.toLocaleString()} records loaded (cache).`);
+        memoryCache[constituency] = cached;
+        setStatus('green', `✅ ${config.label}: ${allData.length.toLocaleString()} records loaded (cached).`);
         document.getElementById('searchBtn').disabled = false;
         updateFieldVisibility();
-        triggerBackgroundPreload(constituency);
+        updateStorageInfo();
         return;
       }
 
-      // Step 3: Fetch from network (first time only)
+      // Step 3: Network fetch (first time only)
       try {
-        setStatus('blue', `⬇️ Downloading ${config.label} data… (first time only, will cache after)`);
+        setStatus('blue', `⬇️ Downloading ${config.label} data… (first time only)`);
         const r = await fetch(config.file);
         if (!r.ok) throw new Error(`Could not load ${config.file}`);
         const text = await r.text();
 
-        setStatus('blue', `⚙️ Processing ${config.label} data...`);
-        allData = await parseJSONAsync(text); // non-blocking parse via Web Worker
+        setStatus('blue', `⚙️ Processing ${config.label}...`);
+        allData = await parseJSONAsync(text);
 
-        memoryCache[constituency] = allData;   // save to memory
-        await saveToCache(constituency, allData); // save to IndexedDB
+        memoryCache[constituency] = allData;
+        await saveToCache(constituency, allData);
 
         setStatus('green', `✅ ${config.label}: ${allData.length.toLocaleString()} records loaded & cached.`);
         document.getElementById('searchBtn').disabled = false;
         updateFieldVisibility();
-        triggerBackgroundPreload(constituency);
+        updateStorageInfo();
       } catch (e) {
         setStatus('red', '❌ Error: ' + e.message);
       }
     }
 
-    function triggerBackgroundPreload(loadedConstituency) {
-      // After loading one constituency, silently preload the other
-      const other = loadedConstituency === 'anantapur' ? 'dharmavaram' : 'anantapur';
-      setTimeout(() => preloadInBackground(other), 2000);
-    }
-
     // ============================================================
-    // UI FUNCTIONS (unchanged)
+    // UI HELPERS
     // ============================================================
     function norm(v) {
       return String(v ?? '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -321,9 +380,9 @@
     function setStatus(type, msg) {
       const el = document.getElementById('status');
       const classes = {
-        blue: 'bg-blue-100 text-blue-800',
+        blue:  'bg-blue-100 text-blue-800',
         green: 'bg-green-100 text-green-800',
-        red: 'bg-red-100 text-red-800'
+        red:   'bg-red-100 text-red-800'
       };
       el.className = `${classes[type]} p-3 rounded mb-4 text-center font-semibold`;
       el.innerText = msg;
@@ -351,20 +410,21 @@
       activeConstituency = name;
       Object.keys(constituencyConfig).forEach(key => {
         const btn = document.getElementById(`btn_${key}`);
+        if (!btn) return;
         btn.className = key === name
-          ? 'px-6 py-2 rounded-full font-bold border-2 border-indigo-600 bg-indigo-600 text-white transition-all'
-          : 'px-6 py-2 rounded-full font-bold border-2 border-indigo-600 text-indigo-600 bg-white transition-all';
+          ? 'px-4 py-2 rounded-full font-bold border-2 border-indigo-600 bg-indigo-600 text-white transition-all text-sm'
+          : 'px-4 py-2 rounded-full font-bold border-2 border-indigo-600 text-indigo-600 bg-white transition-all text-sm';
       });
       loadData(name);
     }
 
     function doSearch() {
       const config = constituencyConfig[activeConstituency];
-      const qName  = norm(document.getElementById('s_name').value);
-      const qRel   = norm(document.getElementById('s_relation').value);
-      const qHno   = config.hasHouseNo ? rawNorm(document.getElementById('s_hno').value) : '';
-      const qEpic  = config.hasEPIC    ? rawNorm(document.getElementById('s_epic').value) : '';
-      const qPart  = String(document.getElementById('s_part').value).trim();
+      const qName = norm(document.getElementById('s_name').value);
+      const qRel  = norm(document.getElementById('s_relation').value);
+      const qHno  = config.hasHouseNo ? rawNorm(document.getElementById('s_hno').value)  : '';
+      const qEpic = config.hasEPIC    ? rawNorm(document.getElementById('s_epic').value) : '';
+      const qPart = String(document.getElementById('s_part').value).trim();
 
       if (!qName && !qRel && !qHno && !qEpic && !qPart) {
         alert('Please enter at least one search field.');
@@ -458,8 +518,17 @@
       currentPage = 1;
     }
 
+    function clearCache() {
+      if (confirm('🗑️ Clear all cached voter data? Next load will re-download from network.')) {
+        clearAllCache();
+      }
+    }
+
     document.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+
+    // Start with Anantapur on page load
     loadData('anantapur');
+    updateStorageInfo();
   </script>
 </body>
 </html>
