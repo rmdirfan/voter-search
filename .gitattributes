@@ -1,3 +1,4 @@
 tadipatri.json filter=lfs diff=lfs merge=lfs -text
 tadipatri_data.json filter=lfs diff=lfs merge=lfs -text
+penukonda_data.json filter=lfs diff=lfs merge=lfs -text
 *.json filter=lfs diff=lfs merge=lfs -text
